@@ -99,27 +99,28 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: '#FFFFFF',
-        padding: 15,
-        borderRadius: 12,
-        marginBottom: 12,
+        padding: 20,
+        borderRadius: 25,
+        marginBottom: 15,
         // Shadow for iOS
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
         // Elevation for Android
-        elevation: 2,
+        elevation: 4,
         borderWidth: 1,
         borderColor: '#F0F0F0',
     },
     menuIconContainer: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 15,
     },
+
 
     menuContent: {
         flex: 1,

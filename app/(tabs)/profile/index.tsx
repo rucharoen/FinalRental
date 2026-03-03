@@ -34,12 +34,12 @@ export default function ProfileScreen() {
     }
   };
   
-  // ใช้ข้อมูลจาก User จริง ถ้าไม่มีให้ใช้ข้อมูลจากความต้องการ (ตามรูปที่ระบุว่าเป็นข้อมูลใน .env)
+  // ใช้ข้อมูลจาก User จริง ถ้าไม่มีให้ใช้ข้อมูลจากความต้องการ
   const displayData = {
-    full_name: user?.full_name,
-    email: user?.emai,
-    address: user?.address,
-    avatar: user?.avatar
+    full_name: user?.full_name || "My Sunny",
+    email: user?.email || "praewpan.sung@northbkk.ac.th",
+    address: user?.address || "16 หมู่ 10 ต.บางภาษี อ.บางเลน จ.นครปฐม 73130",
+    avatar: user?.avatar || "https://picsum.photos/seed/profile/200/200"
   };
 
   const handleLogout = () => {
@@ -118,66 +118,45 @@ export default function ProfileScreen() {
           {renderStatusButton()}
         </View>
 
-
-        {/* Shop Management Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>การจัดการร้านค้า</Text>
-          
-          {/* New Product */}
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => router.push('/(tabs)/products/create')}
-          >
-            <View style={[styles.menuIconContainer, { backgroundColor: '#FF5252' }]}>
-              <Ionicons name="add" size={28} color="#FFFFFF" />
-            </View>
-            <View style={styles.menuContent}>
-              <Text style={[styles.menuTitle, { color: '#FF5252' }]}>ลงประกาศสินค้าใหม่</Text>
-              <Text style={styles.menuSubTitle}>สร้างรายได้จากการเพิ่มสินค้าในระบบ</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color="#BDC3C7" />
-          </TouchableOpacity>
-
-          {/* Manage Products */}
+        {/* Management Section */}
+        <View style={[styles.section, { marginTop: 20 }]}>
+          {/* Platform Rules */}
           <TouchableOpacity style={styles.menuItem}>
-            <View style={[styles.menuIconContainer, { backgroundColor: '#F7F8FA', borderWidth: 1, borderColor: '#EEEEEE' }]}>
-              <MaterialCommunityIcons name="tag-outline" size={24} color="#2C3E50" />
+            <View style={styles.menuIconContainer}>
+              <Ionicons name="alert-circle-outline" size={32} color="#000000" />
             </View>
             <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>จัดการสินค้า</Text>
-              <Text style={styles.menuSubTitle}>แก้ไข/ลบ สินค้าที่ลงประกาศไว้</Text>
+              <Text style={styles.menuTitle}>กฎระเบียบของแพลตฟอร์มตัวกลาง การเช่าสินค้า</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#BDC3C7" />
+            <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
           </TouchableOpacity>
 
-          {/* Incoming Rentals */}
+          {/* Product List */}
           <TouchableOpacity style={styles.menuItem}>
-            <View style={[styles.menuIconContainer, { backgroundColor: '#F7F8FA', borderWidth: 1, borderColor: '#EEEEEE' }]}>
-              <Feather name="clipboard" size={22} color="#2C3E50" />
+            <View style={styles.menuIconContainer}>
+              <MaterialCommunityIcons name="tag-outline" size={32} color="#000000" />
             </View>
             <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>รายการที่มีคนเช่ามา</Text>
-              <Text style={styles.menuSubTitle}>อนุมัติการเช่า/ตรวจสอบสินค้าคืน</Text>
+              <Text style={styles.menuTitle}>รายการสินค้า</Text>
+              <Text style={styles.menuSubTitle}>รออนุมัติ/ที่ต้องชำระ/ที่ต้องได้รับ</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#BDC3C7" />
+            <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
           </TouchableOpacity>
 
-          {/* Wallet */}
-          <TouchableOpacity 
-            style={styles.menuItem}
-            onPress={() => router.push('/(tabs)/wallet')}
-          >
-            <View style={[styles.menuIconContainer, { backgroundColor: '#F7F8FA', borderWidth: 1, borderColor: '#EEEEEE' }]}>
-              <MaterialCommunityIcons name="circle-multiple-outline" size={24} color="#2C3E50" />
+          {/* Open Shop */}
+          <TouchableOpacity style={styles.menuItem}>
+            <View style={styles.menuIconContainer}>
+              <Feather name="clipboard" size={28} color="#000000" />
             </View>
             <View style={styles.menuContent}>
-              <Text style={styles.menuTitle}>กระเป๋าเงิน</Text>
-              <Text style={styles.menuSubTitle}>รายการถอนเงิน/ประวัติธุรกรรม</Text>
+              <Text style={styles.menuTitle}>เปิดร้านปล่อยเช่า</Text>
+              <Text style={styles.menuSubTitle}>ปล่อยเช่าสินค้า</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#BDC3C7" />
+            <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
           </TouchableOpacity>
-
         </View>
+
+
 
         {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
