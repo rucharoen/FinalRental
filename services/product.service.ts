@@ -102,6 +102,25 @@ class ProductService {
       }
     );
   }
+
+  async getProductById(productId: string) {
+    const url = API_ENDPOINTS.UPDATE_PRODUCT.replace('{PRODUCT_ID}', productId);
+    const response = await apiRequest<any>(
+      `${API_ENDPOINTS.BASE_URL}${url}`,
+      {
+        method: 'GET',
+        withAuth: false,
+      }
+    );
+    // ตรวจสอบว่า API ส่งกลับมาเป็น { product: { ... } } หรือ { ... } ตรงๆ
+    if (response && response.product) {
+      return response.product as Product;
+    }
+    return response as Product;
+  }
 }
+
+
+
 
 export default new ProductService();

@@ -43,14 +43,21 @@ class ChatService {
 
   async getChatListByUser(userId: string) {
     const url = API_ENDPOINTS.CHAT_LIST_BY_USER.replace('{USER_ID}', userId);
-    return apiRequest(
+    const response = await apiRequest<any>(
       `${API_ENDPOINTS.BASE_URL}${url}`,
       {
         method: 'GET',
         withAuth: true,
       }
     );
+    // ตรวจสอบโครงสร้างข้อมูลที่ส่งกลับมา
+    if (response && Array.isArray(response)) return response;
+    if (response && Array.isArray(response.chats)) return response.chats;
+    if (response && Array.isArray(response.chatList)) return response.chatList;
+    if (response && response.data && Array.isArray(response.data)) return response.data;
+    return [];
   }
+
 
   async getChatBookingSummary(chatId: string) {
     const url = API_ENDPOINTS.CHAT_BOOKING_SUMMARY.replace('{CHAT_ID}', chatId);

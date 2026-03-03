@@ -47,6 +47,36 @@ export default function TabLayout() {
           ),
         }}
       />
+      
+      {/* ซ่อนหน้าจอที่ไม่ต้องแสดงใน Tab Bar */}
+      <Tabs.Screen name="products" options={{ href: null }} />
+      <Tabs.Screen name="products/index" options={{ href: null }} />
+      {/* ซ่อนหน้าจอและซ่อน Tab Bar เมื่ออยู่ที่หน้านี้ */}
+      <Tabs.Screen 
+        name="products/[id]" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' } 
+        }} 
+      />
+
+      <Tabs.Screen name="products/create" options={{ href: null }} />
+      <Tabs.Screen name="products/edit/index" options={{ href: null }} />
+      <Tabs.Screen name="bookings" options={{ href: null }} />
+      <Tabs.Screen name="bookings/index" options={{ href: null }} />
+      <Tabs.Screen name="bookings/[id]" options={{ href: null }} />
+      <Tabs.Screen name="wallet" options={{ href: null }} />
+      <Tabs.Screen name="wallet/index" options={{ href: null }} />
+      <Tabs.Screen name="chat" options={{ href: null }} />
+      <Tabs.Screen 
+        name="chat/[chatId]" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' } 
+        }} 
+      />
+      <Tabs.Screen name="profile" options={{ href: null }} />
+
 
     </Tabs>
   );

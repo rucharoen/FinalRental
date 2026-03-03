@@ -8,7 +8,6 @@ import { styles } from '../../styles/home.styles';
 
 export default function HomeScreen() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -16,23 +15,10 @@ export default function HomeScreen() {
     fetchProducts();
   }, []);
 
-  useEffect(() => {
-    if (searchQuery.trim() === '') {
-      setFilteredProducts(products);
-    } else {
-      const filtered = products.filter(product => 
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredProducts(filtered);
-    }
-  }, [searchQuery, products]);
-
   const fetchProducts = async () => {
     try {
       const data = await productService.getProducts();
       setProducts(data);
-      setFilteredProducts(data);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -40,21 +26,26 @@ export default function HomeScreen() {
     }
   };
 
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
-  };
+  const filteredProducts = products.filter(product => 
+    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    product.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleCategorySelect = (categoryName: string) => {
-    setSearchQuery(categoryName);
+    if (searchQuery === categoryName) {
+      setSearchQuery('');
+    } else {
+      setSearchQuery(categoryName);
+    }
   };
 
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <SearchBar value={searchQuery} onChangeText={handleSearch} />
+      <SearchBar value={searchQuery} onChangeText={setSearchQuery} />
       
       <ScrollView showsVerticalScrollIndicator={false}>
-        <CategoryList onSelectCategory={handleCategorySelect} />
+        <CategoryList onSelectCategory={handleCategorySelect} selectedCategory={searchQuery} />
         
         <View style={styles.productList}>
           {loading ? (
@@ -65,11 +56,9 @@ export default function HomeScreen() {
                 <ProductCard key={product.id} product={product} />
               ))}
               {filteredProducts.length === 0 && (
-                <View style={{ width: '100%', alignItems: 'center', marginTop: 40 }}>
-                  <Text style={{ textAlign: 'center', color: '#95A5A6', fontSize: 16 }}>
-                    {searchQuery ? `ไม่พบสินค้าที่ตรงกับ "${searchQuery}"` : 'ไม่พบข้อมูลสินค้า'}
-                  </Text>
-                </View>
+                <Text style={{ textAlign: 'center', marginTop: 20, color: '#95A5A6' }}>
+                  ไม่พบข้อมูลสินค้า{searchQuery ? ` ที่ค้นหา "${searchQuery}"` : ''}
+                </Text>
               )}
             </View>
           )}
@@ -80,3 +69,4 @@ export default function HomeScreen() {
     </View>
   );
 }
+

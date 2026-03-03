@@ -9,10 +9,11 @@ const categories = [
 ];
 
 interface CategoryListProps {
-  onSelectCategory: (categoryName: string) => void;
+  onSelectCategory: (name: string) => void;
+  selectedCategory: string;
 }
 
-export const CategoryList: React.FC<CategoryListProps> = ({ onSelectCategory }) => {
+export const CategoryList: React.FC<CategoryListProps> = ({ onSelectCategory, selectedCategory }) => {
   return (
     <View style={styles.categoryWrapper}>
       <View style={styles.categoryList}>
@@ -22,11 +23,17 @@ export const CategoryList: React.FC<CategoryListProps> = ({ onSelectCategory }) 
             style={styles.categoryItem}
             onPress={() => onSelectCategory(item.name)}
           >
-            <View style={styles.categoryIcon}>
+            <View style={[
+              styles.categoryIcon, 
+              selectedCategory === item.name && { borderColor: '#3498DB', backgroundColor: '#EBF5FB' }
+            ]}>
               <Image source={item.icon} style={{ width: 50, height: 50 }} resizeMode="contain" />
             </View>
 
-            <Text style={styles.categoryText} numberOfLines={2}>
+            <Text style={[
+              styles.categoryText,
+              selectedCategory === item.name && { color: '#3498DB', fontWeight: 'bold' }
+            ]} numberOfLines={2}>
               {item.name}
             </Text>
           </TouchableOpacity>
@@ -35,5 +42,6 @@ export const CategoryList: React.FC<CategoryListProps> = ({ onSelectCategory }) 
     </View>
   );
 };
+
 
 export default CategoryList;

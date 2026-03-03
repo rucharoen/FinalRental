@@ -14,13 +14,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({ value, onChangeText }) => 
       <View style={styles.searchContainer}>
         <Ionicons name="search" size={20} color="#95A5A6" />
         <TextInput
-          style={styles.searchPlaceholder}
+          style={[styles.searchPlaceholder, { flex: 1, height: '100%' }]}
           placeholder="ค้นหาสินค้า"
-          placeholderTextColor="#95A5A6"
           value={value}
           onChangeText={onChangeText}
+          placeholderTextColor="#95A5A6"
         />
-
         {value.length > 0 && (
           <TouchableOpacity onPress={() => onChangeText('')}>
             <Ionicons name="close-circle" size={18} color="#95A5A6" />
@@ -33,5 +32,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({ value, onChangeText }) => 
     </View>
   );
 };
+
 
 export default SearchBar;
