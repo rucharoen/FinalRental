@@ -18,6 +18,7 @@ export default function LoginScreen() {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
     if (!identifier || !password) {
@@ -96,14 +97,26 @@ export default function LoginScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
             />
-            <TextInput
-              style={styles.input}
-              placeholder="รหัสผ่าน"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="รหัสผ่าน"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
           </View>
           <TouchableOpacity
             style={[styles.loginButton, loading && styles.disabledButton]}
@@ -172,6 +185,26 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#000',
     backgroundColor: '#FFF',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    height: 56,
+    borderWidth: 1.2,
+    borderColor: '#333',
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+  },
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 15,
+    fontSize: 18,
+    color: '#000',
+  },
+  eyeIcon: {
+    padding: 15,
   },
   loginButton: {
     backgroundColor: '#3494ce',
