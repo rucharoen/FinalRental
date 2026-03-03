@@ -12,38 +12,106 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
-// 📌 Import AuthService เข้ามาจัดการเรื่อง Login และ Token
 import AuthService from "../services/auth.service";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState(""); // รับได้ทั้ง Email หรือ Phone
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [identifierError, setIdentifierError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+
+  const validateIdentifier = (text: string) => {
+    if (!text.trim()) {
+      setIdentifierError("กรุณาป้อนอีเมลหรือหมายเลขโทรศัพท์");
+      return false;
+    }
+
+    if (text.includes("@")) {
+      const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+      if (!emailRegex.test(text)) {
+        setIdentifierError("รูปแบบอีเมลไม่ถูกต้อง");
+        return false;
+      }
+    } else {
+      const cleanPhone = text.replace(/[\s-]/g, "");
+      const isNumeric = /^\d+$/.test(cleanPhone);
+
+      if (!isNumeric && text.trim().length > 0) {
+        setIdentifierError("กรุณากรอกอีเมลหรือหมายเลขโทรศัพท์ให้ถูกต้อง");
+        return false;
+      }
+
+      if (cleanPhone.length !== 10) {
+        setIdentifierError("รูปแบบหมายเลขโทรศัพท์ไม่ถูกต้อง");
+        return false;
+      }
+    }
+
+    setIdentifierError("");
+    return true;
+  };
+
+  const validatePassword = (text: string) => {
+    if (!text) {
+      setPasswordError("กรุณาป้อนรหัสผ่าน");
+      return false;
+    }
+    setPasswordError("");
+    return true;
+  };
+
+  const isFormValid = () => {
+    return identifier.trim() !== "" && password !== "" && !identifierError && !passwordError;
+  };
 
   const handleLogin = async () => {
-    if (!identifier || !password) {
-      Alert.alert("แจ้งเตือน", "กรุณากรอกข้อมูลให้ครบถ้วน");
+    // 1️⃣ ตรวจสอบช่อง อีเมลหรือเบอร์โทรศัพท์
+    if (!identifier.trim()) {
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนอีเมลหรือหมายเลขโทรศัพท์");
+      return;
+    }
+
+    if (identifier.includes("@")) {
+      const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+      if (!emailRegex.test(identifier)) {
+        Alert.alert("แจ้งเตือน", "รูปแบบอีเมลไม่ถูกต้อง");
+        return;
+      }
+    } else {
+      const cleanPhone = identifier.replace(/[\s-]/g, "");
+      const isNumeric = /^\d+$/.test(cleanPhone);
+
+      if (!isNumeric) {
+        Alert.alert("แจ้งเตือน", "กรุณากรอกอีเมลหรือหมายเลขโทรศัพท์ให้ถูกต้อง");
+        return;
+      }
+
+      if (cleanPhone.length !== 10) {
+        Alert.alert("แจ้งเตือน", "รูปแบบหมายเลขโทรศัพท์ไม่ถูกต้อง");
+        return;
+      }
+    }
+
+    // 2️⃣ ตรวจสอบช่อง รหัสผ่าน
+    if (!password) {
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนรหัสผ่าน");
       return;
     }
 
     setLoading(true);
     try {
-      // 1. เรียกใช้ AuthService.login
-      // ภายในฟังก์ชันนี้ควรมีการเก็บ Token ลงใน SecureStore/AsyncStorage เรียบร้อยแล้ว
       await AuthService.login({
-        email: identifier, // หรือ identifier ตามที่ Backend ของคุณตั้งไว้
+        email: identifier,
         password: password,
       });
 
-      // 2. ถ้าสำเร็จ ย้ายหน้าไปที่ Tabs หลัก
-      router.replace("/(tabs)/index")
+      router.replace("/(tabs)");
     } catch (error: any) {
-      console.error("Login error:", error);
-      Alert.alert(
-        "เข้าสู่ระบบไม่สำเร็จ",
-        error.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
-      );
+      // 3️⃣ ดักจับระดับฟอร์ม (รวม) สำหรับกรณีข้อมูลไม่ตรงกัน
+
+      Alert.alert("เข้าสู่ระบบไม่สำเร็จ", "อีเมลหรือรหัสผ่านไม่ถูกต้อง");
     } finally {
       setLoading(false);
     }
@@ -79,28 +147,47 @@ export default function LoginScreen() {
         <View style={styles.content}>
           <View style={styles.inputContainer}>
             <TextInput
-              style={styles.input}
+              style={[styles.input, identifierError ? styles.inputError : null]}
               placeholder="อีเมลหรือเบอร์โทรศัพท์"
               placeholderTextColor="#999"
               value={identifier}
-              onChangeText={setIdentifier}
+              onChangeText={(text) => {
+                let processedText = text;
+                if (!text.includes("@")) {
+                  processedText = text.replace(/[\s-]/g, "");
+                }
+                setIdentifier(processedText);
+                validateIdentifier(processedText);
+              }}
               autoCapitalize="none"
               keyboardType="email-address"
             />
+            {identifierError ? (
+              <Text style={styles.errorText}>{identifierError}</Text>
+            ) : null}
             <TextInput
-              style={styles.input}
+              style={[styles.input, passwordError ? styles.inputError : null]}
               placeholder="รหัสผ่าน"
               placeholderTextColor="#999"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                validatePassword(text);
+              }}
               secureTextEntry
             />
+            {passwordError ? (
+              <Text style={styles.errorText}>{passwordError}</Text>
+            ) : null}
           </View>
 
           <TouchableOpacity
-            style={[styles.loginButton, loading && styles.disabledButton]}
+            style={[
+              styles.loginButton,
+              (loading || !isFormValid()) && styles.disabledButton,
+            ]}
             onPress={handleLogin}
-            disabled={loading}
+            disabled={loading || !isFormValid()}
           >
             <Text style={styles.loginButtonText}>
               {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
@@ -208,5 +295,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#000",
     fontWeight: "600",
+  },
+  errorText: {
+    color: "#e74c3c",
+    fontSize: 14,
+    marginTop: -10,
+    marginBottom: 5,
+    marginLeft: 5,
+  },
+  inputError: {
+    borderColor: "#e74c3c",
   },
 });

@@ -42,8 +42,9 @@ export default function WelcomeScreen() {
         }
       }
     } catch (error) {
-      console.error(`Error logging in with ${platform}:`, error);
+      // Login failed silently for user experience
     }
+
   };
 
   const handleEmailSignup = () => {

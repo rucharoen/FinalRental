@@ -1,11 +1,6 @@
-// API Configuration for FinalRental App
-// Environment variables are defined in .env and app.json
-
-// Default API Base URLs
 export const API_BASE_URL = 'https://finalrental.onrender.com/api';
 export const RENTAL_BASE_URL = 'https://finalrental.onrender.com';
 
-// Helper function for API requests using native fetch
 export interface FetchOptions extends RequestInit {
   withAuth?: boolean;
 }
@@ -23,11 +18,7 @@ export const apiRequest = async <T = any>(
     };
 
     if (withAuth) {
-      // You can get token from storage here
-      // const token = await AsyncStorage.getItem('authToken');
-      // if (token) {
-      //   requestHeaders.Authorization = `Bearer ${token}`;
-      // }
+
     }
 
     const response = await fetch(url, {
@@ -35,10 +26,9 @@ export const apiRequest = async <T = any>(
       ...rest,
     });
 
-    // Handle 401 Unauthorized
     if (response.status === 401) {
       console.error('Unauthorized - redirect to login');
-      // Dispatch logout action here
+
     }
 
     if (!response.ok) {
@@ -48,12 +38,11 @@ export const apiRequest = async <T = any>(
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error('API Request Error:', error);
     throw error;
   }
+
 };
 
-// API Endpoints configuration
 export const API_ENDPOINTS = {
   // BASE URLs
   BASE_URL: API_BASE_URL,
@@ -91,6 +80,7 @@ export const API_ENDPOINTS = {
   // PRODUCT
   CREATE_PRODUCT: '/products',
   GET_OWN_PRODUCTS: '/products/me',
+
   UPDATE_PRODUCT: '/products/{PRODUCT_ID}',
   TOGGLE_RENT_STATUS: '/products/{PRODUCT_ID}/toggle',
   GET_PRODUCTS_BY_SHOP: '/products/shop/{SHOP_ID}',

@@ -2,22 +2,42 @@ import { apiRequest } from './api';
 import { API_ENDPOINTS } from './api';
 
 export interface Product {
-  _id?: string;
+  id: number;
   name: string;
   description: string;
-  price: number;
-  category: string;
-  image?: string;
-  images?: string[];
-  inStock: boolean;
-  shopId?: string;
-  userId?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  price_per_day: number;
+  status: 'available' | 'rented' | 'disabled';
+  owner_id: number;
+  shop_id: number;
+  quantity: number;
+  deposit: number;
+  is_active: boolean;
+  review_count: number;
+  rating_avg: number;
+  images: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 class ProductService {
+  async getProducts() {
+    const response = await apiRequest(
+      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CREATE_PRODUCT}`,
+      {
+        method: 'GET',
+        withAuth: false,
+      }
+    );
+    // If the API returns { products: [...] }
+    if (response && response.products) {
+      return response.products as Product[];
+    }
+    // If it returns an array directly
+    return response as Product[];
+  }
+
   async createProduct(data: Product) {
+
     return apiRequest(
       `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CREATE_PRODUCT}`,
       {

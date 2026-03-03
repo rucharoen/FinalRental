@@ -1,72 +1,300 @@
-import React, { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  SafeAreaView,
   ScrollView,
-  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-// 📌 เรียกใช้ AuthService สำหรับยิง API
 import AuthService from "../services/auth.service";
 
 export default function RegisterScreen() {
   const router = useRouter();
-  
-  // --- States ---
-  const [fullName, setFullName] = useState<string>("");
-  const [phoneNumber, setPhoneNumber] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
-  const [password, setPassword] = useState<string>("");
-  const [confirmPassword, setConfirmPassword] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
+  const [fullName, setFullName] = useState("");
+  const [fullNameError, setFullNameError] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuggestion, setPasswordSuggestion] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // --- Validation Helpers ---
-  const validateEmail = (addr: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(addr);
-  const validatePhone = (phone: string) => /^\d{10}$/.test(phone);
+  const validateFullName = (name: string) => {
+    if (name.length === 0) {
+      setFullNameError("");
+      return true;
+    }
 
-  // --- Functions ---
+    if (name.trim() === "") {
+      setFullNameError("❗️กรุณาป้อนชื่อของคุณ");
+      return false;
+    }
+
+    if (/^\d+$/.test(name)) {
+      setFullNameError("❗️ชื่อ–นามสกุลต้องเป็นตัวอักษร ไม่สามารถเป็นตัวเลขได้");
+      return false;
+    }
+
+    const specialChars = /[@#$%^&*()_+=\!\?\/\\|<>]/;
+    if (specialChars.test(name)) {
+      setFullNameError("❗️ชื่อ–นามสกุลไม่สามารถใช้อักขระพิเศษได้");
+      return false;
+    }
+
+    const emojiRegex =
+      /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+    if (emojiRegex.test(name)) {
+      setFullNameError("❗️ชื่อ–นามสกุลไม่สามารถใช้อิโมจิได้");
+      return false;
+    }
+
+    const validChars = /^[a-zA-Z\u0e00-\u0e7f\s]+$/;
+    if (!validChars.test(name)) {
+      setFullNameError(
+        "❗️กรุณากรอกชื่อ–นามสกุลเป็นภาษาไทยหรือภาษาอังกฤษเท่านั้น",
+      );
+      return false;
+    }
+
+    setFullNameError("");
+    return true;
+  };
+
+  const validatePhone = (phone: string) => {
+    const cleaned = phone.replace(/[^\d]/g, "");
+
+    if (phone.length === 0) {
+      setPhoneError("");
+      return true;
+    }
+
+    if (phone.trim() === "") {
+      setPhoneError("❗️กรุณาป้อนหมายเลขโทรศัพท์");
+      return false;
+    }
+
+    if (/[^\d\s-]/.test(phone)) {
+      setPhoneError("❗️หมายเลขโทรศัพท์ต้องเป็นตัวเลขเท่านั้น");
+      return false;
+    }
+
+    if (cleaned.length > 0 && cleaned.length < 10) {
+      setPhoneError("❗️กรุณากรอกหมายเลขโทรศัพท์ให้ครบ 10 หลัก");
+      return false;
+    }
+
+    if (cleaned.length > 10) {
+      setPhoneError("❗️กรุณากรอกหมายเลขโทรศัพท์ให้ครบ 10 หลัก");
+      return false;
+    }
+
+    if (cleaned.length === 10) {
+      const validPrefix = /^(06|08|09)/;
+      const isRepeating = /^(.)\1+$/.test(cleaned);
+
+      if (!validPrefix.test(cleaned) || isRepeating) {
+        setPhoneError("❗️รูปแบบหมายเลขโทรศัพท์ไม่ถูกต้อง");
+        return false;
+      }
+    }
+
+    setPhoneError("");
+    return true;
+  };
+
+  const validateEmail = (email: string) => {
+    if (email.length === 0) {
+      setEmailError("");
+      return true;
+    }
+
+    if (email.trim() === "") {
+      setEmailError("❗️กรุณาป้อนอีเมล");
+      return false;
+    }
+
+    // รูปแบบอีเมลไม่ถูกต้อง (ไม่มี @)
+    if (!email.includes("@")) {
+      setEmailError("❗️รูปแบบอีเมลไม่ถูกต้อง");
+      return false;
+    }
+
+    // ไม่มีโดเมน (.com, .net ฯลฯ)
+    const emailParts = email.split("@");
+    if (emailParts.length > 1) {
+      const domain = emailParts[1];
+      if (
+        !domain ||
+        !domain.includes(".") ||
+        domain.split(".").pop()?.length === 0
+      ) {
+        setEmailError("❗️กรุณากรอกอีเมลให้มีโดเมน เช่น example@email.com");
+        return false;
+      }
+    }
+
+    // รูปแบบอีเมลไม่ถูกต้อง (โครงสร้างผิด)
+    // - ห้ามมีช่องว่าง
+    // - โครงสร้างพื้นฐาน
+    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    if (!emailRegex.test(email) || email.includes(" ")) {
+      setEmailError("❗️รูปแบบอีเมลไม่ถูกต้อง");
+      return false;
+    }
+
+    setEmailError("");
+    return true;
+  };
+
+  const validatePassword = (pass: string) => {
+    if (pass.length === 0) {
+      setPasswordError("");
+      setPasswordSuggestion("");
+      return true;
+    }
+
+    // ห้ามว่าง - จัดการใน handleSubmit/real-time set
+    if (pass.trim() === "") {
+      setPasswordError("❗️กรุณาป้อนรหัสผ่าน");
+      return false;
+    }
+
+    // ความยาวไม่ถึงขั้นต่ำ (≥ 8 ตัวอักษร)
+    if (pass.length < 8) {
+      setPasswordError("❗️รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร");
+      return false;
+    }
+
+    // ต้องมีตัวอักษรและตัวเลข + ห้ามอักขระพิเศษ
+    const hasLetter = /[a-zA-Z]/.test(pass);
+    const hasNumber = /\d/.test(pass);
+    const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
+
+    if (!hasLetter || !hasNumber || hasSpecial) {
+      setPasswordError("❗️รหัสผ่านต้องมี A-z, 0-9 ต้องไม่อักขระพิเศษ");
+      return false;
+    }
+
+    // Blacklist
+    const blacklist = ["12345678", "password", "qwerty", "11111111"];
+    if (blacklist.includes(pass.toLowerCase())) {
+      setPasswordError("❗️รหัสผ่านนี้คาดเดาได้ง่าย กรุณาเปลี่ยนรหัสผ่านใหม่");
+      return false;
+    }
+
+    setPasswordError("");
+
+    // ข้อความแนะนำ (ไม่ใช่ error) - ตรวจสอบพิมพ์เล็กพิมพ์ใหญ่
+    const hasLower = /[a-z]/.test(pass);
+    const hasUpper = /[A-Z]/.test(pass);
+    if (!hasLower || !hasUpper) {
+      setPasswordSuggestion("❗️รหัสผ่านควรมีตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่");
+    } else {
+      setPasswordSuggestion("");
+    }
+
+    return true;
+  };
+
+  const validateConfirmPassword = (confirm: string, original: string) => {
+    if (confirm.length === 0) {
+      setConfirmPasswordError("");
+      return true;
+    }
+
+    if (confirm !== original) {
+      setConfirmPasswordError("❗️รหัสผ่านไม่ตรงกัน");
+      return false;
+    }
+
+    setConfirmPasswordError("");
+    return true;
+  };
+
+  const isFormValid = () => {
+    return (
+      fullName &&
+      !fullNameError &&
+      phoneNumber &&
+      !phoneError &&
+      email &&
+      !emailError &&
+      password &&
+      !passwordError &&
+      confirmPassword &&
+      !confirmPasswordError
+    );
+  };
+
   const handleRegister = async () => {
-    // 1. เช็คความถูกต้องของข้อมูล (Validation) ก่อนยิง API
-    if (!fullName.trim()) {
-      Alert.alert("แจ้งเตือน", "กรุณากรอกชื่อ-นามสกุล");
+    // ตรวจสอบความถูกต้องและแจ้งเตือนตามลำดับ
+    if (!fullName) {
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนชื่อของคุณ");
       return;
     }
-    if (!validatePhone(phoneNumber)) {
-      Alert.alert("แจ้งเตือน", "กรุณากรอกเบอร์โทรศัพท์ให้ครบ 10 หลัก");
-      return;
-    }
-    if (!validateEmail(email)) {
-      Alert.alert("แจ้งเตือน", "รูปแบบอีเมลไม่ถูกต้อง");
-      return;
-    }
-    if (password.length < 6) {
-      Alert.alert("แจ้งเตือน", "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert("แจ้งเตือน", "รหัสผ่านไม่ตรงกัน");
+    if (fullNameError) {
+      Alert.alert("แจ้งเตือน", fullNameError.replace("❗️", ""));
       return;
     }
 
-    // 2. เริ่มกระบวนการส่งข้อมูล
+    if (!phoneNumber) {
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนหมายเลขโทรศัพท์");
+      return;
+    }
+    if (phoneError) {
+      Alert.alert("แจ้งเตือน", phoneError.replace("❗️", ""));
+      return;
+    }
+
+    if (!email) {
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนอีเมล");
+      return;
+    }
+    if (emailError) {
+      Alert.alert("แจ้งเตือน", emailError.replace("❗️", ""));
+      return;
+    }
+
+    if (!password) {
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนรหัสผ่าน");
+      return;
+    }
+    if (passwordError) {
+      Alert.alert("แจ้งเตือน", passwordError.replace("❗️", ""));
+      return;
+    }
+
+    if (!confirmPassword) {
+      Alert.alert("แจ้งเตือน", "กรุณายืนยันรหัสผ่าน");
+      return;
+    }
+    if (confirmPasswordError) {
+      Alert.alert("แจ้งเตือน", confirmPasswordError.replace("❗️", ""));
+      return;
+    }
+
     setLoading(true);
     try {
       console.log("กำลังส่งข้อมูลสมัครสมาชิก...");
-      
+
       const response = await AuthService.register({
         full_name: fullName,
         email: email,
         phone: phoneNumber,
         password: password,
-        address: "", // ใส่ค่าว่างไว้ตาม Interface
       });
 
       console.log("สมัครสมาชิกสำเร็จ:", response);
@@ -74,15 +302,36 @@ export default function RegisterScreen() {
         { text: "ตกลง", onPress: () => router.replace("/login") },
       ]);
     } catch (error: any) {
-      // จับ Error 404 หรือ Network Error ตรงนี้
       console.error("Registration error:", error);
-      Alert.alert(
-        "สมัครสมาชิกไม่สำเร็จ",
-        error?.message || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ (Error 404)"
-      );
+
+      let errorMessage = error?.message || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้";
+
+      // ดักจับกรณีอีเมลซ้ำ
+      if (
+        errorMessage.toLowerCase().includes("email") &&
+        (errorMessage.toLowerCase().includes("taken") ||
+          errorMessage.toLowerCase().includes("exists") ||
+          errorMessage.toLowerCase().includes("already"))
+      ) {
+        setEmailError(
+          "❗️อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่น",
+        );
+        errorMessage =
+          "อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่น";
+      }
+
+      Alert.alert("สมัครสมาชิกไม่สำเร็จ", errorMessage);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleBack = () => {
+    router.back();
+  };
+
+  const handleLogin = () => {
+    router.push("/login");
   };
 
   return (
@@ -95,79 +344,147 @@ export default function RegisterScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <TouchableOpacity onPress={handleBack} style={styles.backButton}>
               <Ionicons name="chevron-back" size={28} color="#000" />
             </TouchableOpacity>
             <Text style={styles.title}>สมัครสมาชิก</Text>
-            <View style={{ width: 28 }} /> 
+            <View style={{ width: 28 }} />
           </View>
-
-          {/* Form Content */}
           <View style={styles.content}>
             <View style={styles.inputContainer}>
               <TextInput
-                style={styles.input}
+                style={[styles.input, fullNameError ? styles.inputError : null]}
                 placeholder="ชื่อ-นามสกุล"
                 placeholderTextColor="#999"
                 value={fullName}
-                onChangeText={setFullName}
+                onChangeText={(text) => {
+                  setFullName(text);
+                  validateFullName(text);
+                }}
               />
+              {fullNameError ? (
+                <Text style={styles.errorText}>{fullNameError}</Text>
+              ) : null}
               <TextInput
-                style={styles.input}
-                placeholder="เบอร์โทรศัพท์ (10 หลัก)"
+                style={[styles.input, phoneError ? styles.inputError : null]}
+                placeholder="เบอร์โทรศัพท์"
                 placeholderTextColor="#999"
                 value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                keyboardType="phone-pad"
+                onChangeText={(text) => {
+                  const cleaned = text.replace(/[\s-]/g, "");
+                  setPhoneNumber(cleaned);
+                  validatePhone(cleaned);
+                }}
+                keyboardType="numeric"
                 maxLength={10}
               />
+              {phoneError ? (
+                <Text style={styles.errorText}>{phoneError}</Text>
+              ) : null}
               <TextInput
-                style={styles.input}
+                style={[styles.input, emailError ? styles.inputError : null]}
                 placeholder="อีเมล"
                 placeholderTextColor="#999"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  validateEmail(text);
+                }}
                 autoCapitalize="none"
                 keyboardType="email-address"
               />
-              <TextInput
-                style={styles.input}
-                placeholder="รหัสผ่าน (6 ตัวขึ้นไป)"
-                placeholderTextColor="#999"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="ยืนยันรหัสผ่าน"
-                placeholderTextColor="#999"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-              />
-            </View>
+              {emailError ? (
+                <Text style={styles.errorText}>{emailError}</Text>
+              ) : null}
+              <View
+                style={[
+                  styles.passwordContainer,
+                  passwordError ? styles.inputError : null,
+                ]}
+              >
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="รหัสผ่าน"
+                  placeholderTextColor="#999"
+                  value={password}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    validatePassword(text);
+                    // Re-validate confirm pass when password changes
+                    if (confirmPassword)
+                      validateConfirmPassword(confirmPassword, text);
+                  }}
+                  secureTextEntry={!showPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowPassword(!showPassword)}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+              {passwordError ? (
+                <Text style={styles.errorText}>{passwordError}</Text>
+              ) : null}
+              {passwordSuggestion && !passwordError ? (
+                <Text style={styles.suggestionText}>{passwordSuggestion}</Text>
+              ) : null}
 
-            {/* Register Button */}
+              <View
+                style={[
+                  styles.passwordContainer,
+                  confirmPasswordError ? styles.inputError : null,
+                ]}
+              >
+                <TextInput
+                  style={styles.passwordInput}
+                  placeholder="ยืนยันรหัสผ่าน"
+                  placeholderTextColor="#999"
+                  value={confirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    validateConfirmPassword(text, password);
+                  }}
+                  secureTextEntry={!showConfirmPassword}
+                />
+                <TouchableOpacity
+                  style={styles.eyeIcon}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  <Ionicons
+                    name={
+                      showConfirmPassword ? "eye-outline" : "eye-off-outline"
+                    }
+                    size={24}
+                    color="#666"
+                  />
+                </TouchableOpacity>
+              </View>
+              {confirmPasswordError ? (
+                <Text style={styles.errorText}>{confirmPasswordError}</Text>
+              ) : null}
+            </View>
             <TouchableOpacity
-              style={[styles.registerButton, loading && styles.disabledButton]}
+              style={[
+                styles.registerButton,
+                (loading || !isFormValid()) && styles.disabledButton,
+              ]}
               onPress={handleRegister}
-              disabled={loading}
+              disabled={loading || !isFormValid()}
             >
-              {loading ? (
-                <ActivityIndicator color="#FFF" />
-              ) : (
-                <Text style={styles.registerButtonText}>สมัครสมาชิก</Text>
-              )}
+              <Text style={styles.registerButtonText}>
+                {loading ? "กำลังดำเนินการ กรุณารอสักครู่" : "สมัครสมาชิก"}
+              </Text>
             </TouchableOpacity>
           </View>
-
-          {/* Footer */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
-            <TouchableOpacity onPress={() => router.push("/login")}>
+            <TouchableOpacity onPress={handleLogin}>
               <Text style={styles.loginLink}>เข้าสู่ระบบ</Text>
             </TouchableOpacity>
           </View>
@@ -178,52 +495,120 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFFFFF" },
-  flex: { flex: 1 },
-  scrollContent: { flexGrow: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  flex: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
+    paddingTop: 10,
     height: 60,
   },
-  backButton: { padding: 5 },
-  title: { fontSize: 24, fontWeight: "bold", color: "#000" },
-  content: { flex: 1, paddingHorizontal: 30, paddingTop: 20 },
-  inputContainer: { gap: 15, marginBottom: 30 },
+  backButton: {
+    padding: 5,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "500",
+    color: "#000",
+    textAlign: "center",
+    marginTop: 20,
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 30,
+    paddingTop: 40,
+  },
+  inputContainer: {
+    gap: 15,
+    marginBottom: 30,
+  },
   input: {
     width: "100%",
     height: 56,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 12,
+    borderWidth: 1.2,
+    borderColor: "#333",
+    borderRadius: 8,
     paddingHorizontal: 15,
-    fontSize: 16,
+    fontSize: 18,
     color: "#000",
-    backgroundColor: "#F9F9F9",
+    backgroundColor: "#FFF",
+  },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    height: 56,
+    borderWidth: 1.2,
+    borderColor: "#333",
+    borderRadius: 8,
+    backgroundColor: "#FFF",
+  },
+  passwordInput: {
+    flex: 1,
+    height: "100%",
+    paddingHorizontal: 15,
+    fontSize: 18,
+    color: "#000",
+  },
+  eyeIcon: {
+    padding: 15,
   },
   registerButton: {
     backgroundColor: "#3494ce",
     height: 58,
-    borderRadius: 12,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 10,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
   },
-  disabledButton: { backgroundColor: "#A0D2EB" },
-  registerButtonText: { color: "#FFFFFF", fontSize: 18, fontWeight: "600" },
+  disabledButton: {
+    backgroundColor: "#bdc3c7",
+  },
+  registerButtonText: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "500",
+  },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 30,
+    paddingVertical: 40,
   },
-  footerText: { fontSize: 16, color: "#666" },
-  loginLink: { fontSize: 16, color: "#3494ce", fontWeight: "bold" },
+  footerText: {
+    fontSize: 18,
+    color: "#333",
+  },
+  loginLink: {
+    fontSize: 18,
+    color: "#000",
+    fontWeight: "600",
+  },
+  errorText: {
+    color: "#e74c3c",
+    fontSize: 14,
+    marginTop: -10,
+    marginBottom: 5,
+    marginLeft: 5,
+  },
+  inputError: {
+    borderColor: "#e74c3c",
+  },
+  suggestionText: {
+    color: "#3494ce",
+    fontSize: 14,
+    marginTop: -10,
+    marginBottom: 5,
+    marginLeft: 5,
+  },
 });
