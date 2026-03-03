@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
@@ -9,52 +9,41 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+} from "react-native";
+import { useRouter } from "expo-router";
+import Ionicons from "@expo/vector-icons/Ionicons";
+// 📌 Import AuthService เข้ามาจัดการเรื่อง Login และ Token
+import AuthService from "../services/auth.service";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [identifier, setIdentifier] = useState('');
-  const [password, setPassword] = useState('');
+  const [identifier, setIdentifier] = useState(""); // รับได้ทั้ง Email หรือ Phone
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!identifier || !password) {
-      Alert.alert('แจ้งเตือน', 'กรุณากรอกข้อมูลให้ครบถ้วน');
+      Alert.alert("แจ้งเตือน", "กรุณากรอกข้อมูลให้ครบถ้วน");
       return;
     }
 
     setLoading(true);
     try {
-      const baseUrl = process.env.EXPO_PUBLIC_API_BASE_URL;
-      const endpoint = process.env.EXPO_PUBLIC_AUTH_LOGIN;
-      
-      if (!baseUrl || !endpoint) {
-        throw new Error('API configuration missing');
-      }
-
-      const response = await fetch(`${baseUrl}${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: identifier,
-          password: password,
-        }),
+      // 1. เรียกใช้ AuthService.login
+      // ภายในฟังก์ชันนี้ควรมีการเก็บ Token ลงใน SecureStore/AsyncStorage เรียบร้อยแล้ว
+      await AuthService.login({
+        email: identifier, // หรือ identifier ตามที่ Backend ของคุณตั้งไว้
+        password: password,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert('เข้าสู่ระบบไม่สำเร็จ', data.message || 'อีเมลหรือรหัสผ่านไม่ถูกต้อง');
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      Alert.alert('ข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้');
+      // 2. ถ้าสำเร็จ ย้ายหน้าไปที่ Tabs หลัก
+      router.replace("/(tabs)/index")
+    } catch (error: any) {
+      console.error("Login error:", error);
+      Alert.alert(
+        "เข้าสู่ระบบไม่สำเร็จ",
+        error.message || "อีเมลหรือรหัสผ่านไม่ถูกต้อง"
+      );
     } finally {
       setLoading(false);
     }
@@ -65,17 +54,18 @@ export default function LoginScreen() {
   };
 
   const handleRegister = () => {
-    router.push('/register');
+    router.push("/register");
   };
 
   const handleForgotPassword = () => {
-    console.log('Forgot password');
+    // ฟังก์ชันลืมรหัสผ่าน
+    console.log("Forgot password");
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.flex}
       >
         <View style={styles.header}>
@@ -85,6 +75,7 @@ export default function LoginScreen() {
           <Text style={styles.title}>เข้าสู่ระบบ</Text>
           <View style={{ width: 28 }} />
         </View>
+
         <View style={styles.content}>
           <View style={styles.inputContainer}>
             <TextInput
@@ -105,17 +96,22 @@ export default function LoginScreen() {
               secureTextEntry
             />
           </View>
+
           <TouchableOpacity
             style={[styles.loginButton, loading && styles.disabledButton]}
             onPress={handleLogin}
             disabled={loading}
           >
-            <Text style={styles.loginButtonText}>{loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}</Text>
+            <Text style={styles.loginButtonText}>
+              {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+            </Text>
           </TouchableOpacity>
+
           <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPassword}>
             <Text style={styles.forgotPasswordText}>ลืมรหัสผ่าน</Text>
           </TouchableOpacity>
         </View>
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>ยังไม่มีบัญชี? </Text>
           <TouchableOpacity onPress={handleRegister}>
@@ -130,15 +126,15 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#FFFFFF",
   },
   flex: {
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 10,
     height: 60,
@@ -148,9 +144,9 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: '500',
-    color: '#000',
-    textAlign: 'center',
+    fontWeight: "500",
+    color: "#000",
+    textAlign: "center",
     marginTop: 20,
   },
   content: {
@@ -163,54 +159,54 @@ const styles = StyleSheet.create({
     marginBottom: 30,
   },
   input: {
-    width: '100%',
+    width: "100%",
     height: 56,
     borderWidth: 1.2,
-    borderColor: '#333',
+    borderColor: "#333",
     borderRadius: 8,
     paddingHorizontal: 15,
     fontSize: 18,
-    color: '#000',
-    backgroundColor: '#FFF',
+    color: "#000",
+    backgroundColor: "#FFF",
   },
   loginButton: {
-    backgroundColor: '#3494ce',
+    backgroundColor: "#3494ce",
     height: 58,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 10,
   },
   disabledButton: {
-    backgroundColor: '#bdc3c7',
+    backgroundColor: "#bdc3c7",
   },
   loginButtonText: {
-    color: '#FFFFFF',
+    color: "#FFFFFF",
     fontSize: 20,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   forgotPassword: {
     marginTop: 25,
-    alignItems: 'center',
+    alignItems: "center",
   },
   forgotPasswordText: {
-    color: '#333',
+    color: "#333",
     fontSize: 16,
-    fontWeight: '400',
+    fontWeight: "400",
   },
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
     paddingBottom: 40,
   },
   footerText: {
     fontSize: 18,
-    color: '#333',
+    color: "#333",
   },
   registerLink: {
     fontSize: 18,
-    color: '#000',
-    fontWeight: '600',
+    color: "#000",
+    fontWeight: "600",
   },
 });

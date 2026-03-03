@@ -8,7 +8,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Ionicons, Fontisto } from '@expo/vector-icons';
+import { Ionicons, Fontisto } from "@expo/vector-icons";
+
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 
