@@ -76,6 +76,21 @@ export default function TabLayout() {
         }} 
       />
       <Tabs.Screen name="profile" options={{ href: null }} />
+      <Tabs.Screen name="cart" options={{ href: null }} />
+      <Tabs.Screen 
+        name="cart/index" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' } 
+        }} 
+      />
+      <Tabs.Screen 
+        name="checkout/index" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' } 
+        }} 
+      />
 
 
     </Tabs>

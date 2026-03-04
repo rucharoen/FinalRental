@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TextInput, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { styles } from '../../styles/home.styles';
 
 interface SearchBarProps {
@@ -9,6 +10,8 @@ interface SearchBarProps {
 }
 
 export const SearchBar: React.FC<SearchBarProps> = ({ value, onChangeText }) => {
+  const router = useRouter();
+
   return (
     <View style={styles.header}>
       <View style={styles.searchContainer}>
@@ -26,7 +29,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({ value, onChangeText }) => 
           </TouchableOpacity>
         )}
       </View>
-      <TouchableOpacity style={styles.cartButton}>
+      <TouchableOpacity 
+        style={styles.cartButton}
+        onPress={() => router.push('/cart' as any)}
+      >
         <Ionicons name="cart-outline" size={28} color="#FFFFFF" />
       </TouchableOpacity>
     </View>

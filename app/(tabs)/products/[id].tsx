@@ -9,9 +9,10 @@ import {
   SafeAreaView 
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons, Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import productService, { Product } from '../../../services/product.service';
-import styles from '../../../styles/product-detail';
+import { Ionicons, Feather, MaterialCommunityIcons, AntDesign } from '@expo/vector-icons';
+import productService, { Product } from '@/services/product.service';
+import SelectionModal from '@/components/SelectionModal';
+import styles from '@/styles/product-detail';
 
 
 export default function ProductDetailScreen() {
@@ -20,6 +21,8 @@ export default function ProductDetailScreen() {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'details' | 'terms'>('details');
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalType, setModalType] = useState<'cart' | 'rent'>('cart');
 
   useEffect(() => {
     if (id) {
@@ -211,15 +214,34 @@ const fetchProduct = async () => {
             <Ionicons name="chatbubble-ellipses-outline" size={24} color="#7F8C8D" />
             <Text style={styles.iconLabel}>แชท</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconButton}>
+          <TouchableOpacity 
+            style={styles.iconButton}
+            onPress={() => {
+              setModalType('cart');
+              setModalVisible(true);
+            }}
+          >
             <Ionicons name="cart-outline" size={24} color="#7F8C8D" />
             <Text style={styles.iconLabel}>เพิ่มไปยังรถเข็น</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity style={styles.rentButton}>
-          <Text style={styles.rentButtonText}>เช่าทันที</Text>
+        <TouchableOpacity 
+          style={styles.rentButton}
+          onPress={() => {
+            setModalType('rent');
+            setModalVisible(true);
+          }}
+        >
+          <Text style={styles.rentButtonText}>เช่าเลย</Text>
         </TouchableOpacity>
       </View>
+
+      <SelectionModal 
+        visible={modalVisible}
+        onClose={() => setModalVisible(false)}
+        product={product}
+        type={modalType}
+      />
 
     </SafeAreaView>
   );

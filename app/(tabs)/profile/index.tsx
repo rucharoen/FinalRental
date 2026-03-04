@@ -36,10 +36,10 @@ export default function ProfileScreen() {
   
   // ใช้ข้อมูลจาก User จริง ถ้าไม่มีให้ใช้ข้อมูลจากความต้องการ
   const displayData = {
-    full_name: user?.full_name || "My Sunny",
-    email: user?.email || "praewpan.sung@northbkk.ac.th",
-    address: user?.address || "16 หมู่ 10 ต.บางภาษี อ.บางเลน จ.นครปฐม 73130",
-    avatar: user?.avatar || "https://picsum.photos/seed/profile/200/200"
+    full_name: user?.full_name,
+    email: user?.email,
+    address: user?.address,
+    avatar: user?.avatar
   };
 
   const handleLogout = () => {
