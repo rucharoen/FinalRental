@@ -18,16 +18,16 @@ export const CategoryList: React.FC<CategoryListProps> = ({ onSelectCategory, se
     <View style={styles.categoryWrapper}>
       <View style={styles.categoryList}>
         {categories.map((item) => (
-          <TouchableOpacity 
-            key={item.id} 
+          <TouchableOpacity
+            key={item.id}
             style={styles.categoryItem}
             onPress={() => onSelectCategory(item.name)}
           >
             <View style={[
-              styles.categoryIcon, 
-              selectedCategory === item.name && { borderColor: '#3498DB', backgroundColor: '#EBF5FB' }
+              styles.categoryIcon,
+              selectedCategory === item.name && { borderColor: '#3498DB' }
             ]}>
-              <Image source={item.icon} style={{ width: 50, height: 50 }} resizeMode="contain" />
+              <Image source={item.icon} style={{ width: 50, height: 50, borderRadius: 32.5 }} resizeMode="cover" />
             </View>
 
             <Text style={[

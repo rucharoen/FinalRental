@@ -26,7 +26,7 @@ export default function WelcomeScreen() {
       } else if (platform === 'Facebook') {
         endpoint = process.env.EXPO_PUBLIC_AUTH_LOGIN_FACEBOOK || '/auth/facebook/callback';
       } else if (platform === 'Google') {
-        endpoint = '/auth/google/callback';
+        endpoint = process.env.EXPO_PUBLIC_AUTH_LOGIN_GOOGLE || '/auth/google/callback';
       }
 
       if (!baseUrl) return;
@@ -68,9 +68,9 @@ export default function WelcomeScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Google')}>
             <View style={styles.iconWrapper}>
-              <Image 
-                source={{ uri: 'https://www.gstatic.com/images/branding/product/2x/googleg_96dp.png' }} 
-                style={{ width: 24, height: 24 }} 
+              <Image
+                source={{ uri: 'https://www.gstatic.com/images/branding/product/2x/googleg_96dp.png' }}
+                style={{ width: 24, height: 24 }}
                 resizeMode="contain"
               />
             </View>
@@ -84,9 +84,9 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Line')}>
             <View style={styles.iconWrapper}>
-              <Image 
-                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/124/124027.png' }} 
-                style={{ width: 26, height: 26, borderRadius: 14 }} 
+              <Image
+                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/124/124027.png' }}
+                style={{ width: 26, height: 26, borderRadius: 14 }}
                 resizeMode="cover"
               />
             </View>

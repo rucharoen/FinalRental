@@ -12,8 +12,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const router = useRouter();
 
   return (
-    <TouchableOpacity 
-      style={styles.productCard} 
+    <TouchableOpacity
+      style={styles.productCard}
       onPress={() => router.push(`/(tabs)/products/${product.id}`)}
     >
       <View style={styles.productImage}>
@@ -28,8 +28,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           {product.name}
         </Text>
         <View style={styles.priceRow}>
-          <Text style={styles.productPrice}>{product.price_per_day.toLocaleString()} ฿</Text>
-          <Text style={styles.priceUnit}>/วัน</Text>
+          <Text style={styles.productPrice}>{product.price_per_day.toLocaleString()} ฿/วัน</Text>
         </View>
       </View>
     </TouchableOpacity>
