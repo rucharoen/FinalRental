@@ -26,7 +26,7 @@ export default function WelcomeScreen() {
       } else if (platform === 'Facebook') {
         endpoint = process.env.EXPO_PUBLIC_AUTH_LOGIN_FACEBOOK || '/auth/facebook/callback';
       } else if (platform === 'Google') {
-        endpoint = '/auth/google/callback';
+        endpoint = process.env.EXPO_PUBLIC_AUTH_LOGIN_GOOGLE || '/auth/google/callback';
       }
 
       if (!baseUrl) return;
@@ -68,7 +68,11 @@ export default function WelcomeScreen() {
         <View style={styles.buttonContainer}>
           <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Google')}>
             <View style={styles.iconWrapper}>
-              <Ionicons name="logo-google" size={24} color="#DB4437" />
+              <Image
+                source={{ uri: 'https://www.gstatic.com/images/branding/product/2x/googleg_96dp.png' }}
+                style={{ width: 24, height: 24 }}
+                resizeMode="contain"
+              />
             </View>
             <Text style={styles.socialButtonText}>ดำเนินการต่อด้วย Google</Text>
           </TouchableOpacity>
@@ -80,7 +84,11 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
           <TouchableOpacity style={styles.socialButton} onPress={() => handleSocialLogin('Line')}>
             <View style={styles.iconWrapper}>
-              <Fontisto name="line" size={28} color="#06C755" />
+              <Image
+                source={{ uri: 'https://cdn-icons-png.flaticon.com/512/124/124027.png' }}
+                style={{ width: 26, height: 26, borderRadius: 14 }}
+                resizeMode="cover"
+              />
             </View>
             <Text style={styles.socialButtonText}>ดำเนินการต่อด้วย Line</Text>
           </TouchableOpacity>
@@ -109,10 +117,9 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     width: '100%',
-    height: 350,
+    height: 300,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
   },
   logo: {
     width: '100%',
@@ -128,7 +135,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#333',
-    borderRadius: 8,
+    borderRadius: 5,
     paddingVertical: 14,
     backgroundColor: '#FFFFFF',
     position: 'relative',
@@ -141,7 +148,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   socialButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#000',
     fontWeight: '500',
   },

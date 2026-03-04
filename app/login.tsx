@@ -22,6 +22,8 @@ export default function LoginScreen() {
   const [identifierError, setIdentifierError] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
+  const [showPassword, setShowPassword] = useState(false);
+
   const validateIdentifier = (text: string) => {
     if (!text.trim()) {
       setIdentifierError("กรุณาป้อนอีเมลหรือหมายเลขโทรศัพท์");
@@ -140,9 +142,9 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={handleBack} style={styles.backButton}>
             <Ionicons name="chevron-back" size={28} color="#000" />
           </TouchableOpacity>
-          <Text style={styles.title}>เข้าสู่ระบบ</Text>
-          <View style={{ width: 28 }} />
         </View>
+
+        <Text style={styles.title}>เข้าสู่ระบบ</Text>
 
         <View style={styles.content}>
           <View style={styles.inputContainer}>
@@ -165,17 +167,30 @@ export default function LoginScreen() {
             {identifierError ? (
               <Text style={styles.errorText}>{identifierError}</Text>
             ) : null}
-            <TextInput
-              style={[styles.input, passwordError ? styles.inputError : null]}
-              placeholder="รหัสผ่าน"
-              placeholderTextColor="#999"
-              value={password}
-              onChangeText={(text) => {
-                setPassword(text);
-                validatePassword(text);
-              }}
-              secureTextEntry
-            />
+
+            <View style={[styles.passwordContainer, passwordError ? styles.inputError : null]}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="รหัสผ่าน"
+                placeholderTextColor="#999"
+                value={password}
+                onChangeText={(text) => {
+                  setPassword(text);
+                  validatePassword(text);
+                }}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={styles.eyeIcon}
+                onPress={() => setShowPassword(!showPassword)}
+              >
+                <Ionicons
+                  name={showPassword ? "eye-outline" : "eye-off-outline"}
+                  size={24}
+                  color="#666"
+                />
+              </TouchableOpacity>
+            </View>
             {passwordError ? (
               <Text style={styles.errorText}>{passwordError}</Text>
             ) : null}
@@ -223,8 +238,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 10,
-    height: 60,
+    height: 56,
+    marginTop: 40,
   },
   backButton: {
     padding: 5,
@@ -234,12 +249,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#000",
     textAlign: "center",
-    marginTop: 20,
+    marginTop: 40,
+    marginBottom: 30,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
   inputContainer: {
     gap: 15,
@@ -248,18 +264,38 @@ const styles = StyleSheet.create({
   input: {
     width: "100%",
     height: 56,
-    borderWidth: 1.2,
+    borderWidth: 1,
     borderColor: "#333",
-    borderRadius: 8,
+    borderRadius: 5,
     paddingHorizontal: 15,
     fontSize: 18,
     color: "#000",
     backgroundColor: "#FFF",
   },
+  passwordContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    width: "100%",
+    height: 56,
+    borderWidth: 1,
+    borderColor: "#333",
+    borderRadius: 5,
+    backgroundColor: "#FFF",
+  },
+  passwordInput: {
+    flex: 1,
+    height: "100%",
+    paddingHorizontal: 15,
+    fontSize: 18,
+    color: "#000",
+  },
+  eyeIcon: {
+    padding: 15,
+  },
   loginButton: {
-    backgroundColor: "#3494ce",
+    backgroundColor: "#3498db",
     height: 58,
-    borderRadius: 8,
+    borderRadius: 5,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 10,
@@ -273,11 +309,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
   forgotPassword: {
-    marginTop: 25,
+    marginTop: 20,
     alignItems: "center",
   },
   forgotPasswordText: {
-    color: "#333",
+    color: "#000",
     fontSize: 16,
     fontWeight: "400",
   },
@@ -285,7 +321,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingBottom: 40,
+    paddingVertical: 35,
+    backgroundColor: "#FFFFFF",
   },
   footerText: {
     fontSize: 18,

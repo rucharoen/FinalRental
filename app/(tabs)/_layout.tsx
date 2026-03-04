@@ -7,7 +7,7 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#3498DB',
+        tabBarActiveTintColor: '#000000',
         tabBarInactiveTintColor: '#95A5A6',
         tabBarStyle: {
           height: 60,
@@ -25,7 +25,7 @@ export default function TabLayout() {
         options={{
           title: 'หน้าแรก',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'storefront' : 'storefront-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -34,7 +34,7 @@ export default function TabLayout() {
         options={{
           title: 'แชท',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubble' : 'chatbubble-outline'} size={24} color={color} />
+            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -47,17 +47,17 @@ export default function TabLayout() {
           ),
         }}
       />
-      
+
       {/* ซ่อนหน้าจอที่ไม่ต้องแสดงใน Tab Bar */}
       <Tabs.Screen name="products" options={{ href: null }} />
       <Tabs.Screen name="products/index" options={{ href: null }} />
       {/* ซ่อนหน้าจอและซ่อน Tab Bar เมื่ออยู่ที่หน้านี้ */}
-      <Tabs.Screen 
-        name="products/[id]" 
-        options={{ 
+      <Tabs.Screen
+        name="products/[id]"
+        options={{
           href: null,
-          tabBarStyle: { display: 'none' } 
-        }} 
+          tabBarStyle: { display: 'none' }
+        }}
       />
 
       <Tabs.Screen name="products/create" options={{ href: null }} />
@@ -68,28 +68,28 @@ export default function TabLayout() {
       <Tabs.Screen name="wallet" options={{ href: null }} />
       <Tabs.Screen name="wallet/index" options={{ href: null }} />
       <Tabs.Screen name="chat" options={{ href: null }} />
-      <Tabs.Screen 
-        name="chat/[chatId]" 
-        options={{ 
+      <Tabs.Screen
+        name="chat/[chatId]"
+        options={{
           href: null,
-          tabBarStyle: { display: 'none' } 
-        }} 
+          tabBarStyle: { display: 'none' }
+        }}
       />
       <Tabs.Screen name="profile" options={{ href: null }} />
       <Tabs.Screen name="cart" options={{ href: null }} />
-      <Tabs.Screen 
-        name="cart/index" 
-        options={{ 
+      <Tabs.Screen
+        name="cart/index"
+        options={{
           href: null,
-          tabBarStyle: { display: 'none' } 
-        }} 
+          tabBarStyle: { display: 'none' }
+        }}
       />
-      <Tabs.Screen 
-        name="checkout/index" 
-        options={{ 
+      <Tabs.Screen
+        name="checkout/index"
+        options={{
           href: null,
-          tabBarStyle: { display: 'none' } 
-        }} 
+          tabBarStyle: { display: 'none' }
+        }}
       />
 
 
