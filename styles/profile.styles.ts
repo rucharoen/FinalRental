@@ -9,8 +9,8 @@ const styles = StyleSheet.create({
     },
     header: {
         alignItems: 'center',
-        paddingTop: 60,
-        paddingBottom: 30,
+        paddingTop: 15,
+        paddingBottom: 15,
         backgroundColor: '#FFFFFF',
     },
     avatarContainer: {
