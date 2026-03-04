@@ -348,9 +348,9 @@ export default function RegisterScreen() {
             <TouchableOpacity onPress={handleBack} style={styles.backButton}>
               <Ionicons name="chevron-back" size={28} color="#000" />
             </TouchableOpacity>
-            <Text style={styles.title}>สมัครสมาชิก</Text>
-            <View style={{ width: 28 }} />
           </View>
+
+          <Text style={styles.title}>สมัครสมาชิก</Text>
           <View style={styles.content}>
             <View style={styles.inputContainer}>
               <TextInput
@@ -482,13 +482,13 @@ export default function RegisterScreen() {
               </Text>
             </TouchableOpacity>
           </View>
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
-            <TouchableOpacity onPress={handleLogin}>
-              <Text style={styles.loginLink}>เข้าสู่ระบบ</Text>
-            </TouchableOpacity>
-          </View>
         </ScrollView>
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>มีบัญชีอยู่แล้ว? </Text>
+          <TouchableOpacity onPress={handleLogin}>
+            <Text style={styles.loginLink}>เข้าสู่ระบบ</Text>
+          </TouchableOpacity>
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -503,15 +503,15 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    flexGrow: 1,
+    paddingBottom: 40,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingTop: 10,
-    height: 60,
+    height: 56,
+    marginTop: 40,
   },
   backButton: {
     padding: 5,
@@ -521,12 +521,13 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     color: "#000",
     textAlign: "center",
-    marginTop: 20,
+    marginTop: 40,
+    marginBottom: 30,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 30,
-    paddingTop: 40,
+    paddingHorizontal: 20,
+    paddingTop: 10,
   },
   inputContainer: {
     gap: 15,
@@ -535,9 +536,9 @@ const styles = StyleSheet.create({
   input: {
     width: "100%",
     height: 56,
-    borderWidth: 1.2,
+    borderWidth: 1,
     borderColor: "#333",
-    borderRadius: 8,
+    borderRadius: 5,
     paddingHorizontal: 15,
     fontSize: 18,
     color: "#000",
@@ -548,9 +549,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
     height: 56,
-    borderWidth: 1.2,
+    borderWidth: 1,
     borderColor: "#333",
-    borderRadius: 8,
+    borderRadius: 5,
     backgroundColor: "#FFF",
   },
   passwordInput: {
@@ -564,9 +565,9 @@ const styles = StyleSheet.create({
     padding: 15,
   },
   registerButton: {
-    backgroundColor: "#3494ce",
+    backgroundColor: "#3498db",
     height: 58,
-    borderRadius: 8,
+    borderRadius: 5,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 10,
@@ -583,7 +584,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    paddingVertical: 40,
+    paddingVertical: 35,
+    borderTopWidth: 0,
+    backgroundColor: "#FFFFFF",
   },
   footerText: {
     fontSize: 18,
@@ -611,4 +614,5 @@ const styles = StyleSheet.create({
     marginBottom: 5,
     marginLeft: 5,
   },
+
 });
