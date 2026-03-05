@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
   Image,
-  ScrollView, 
-  SafeAreaView, 
-  KeyboardAvoidingView, 
+  ScrollView,
+  SafeAreaView,
+  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   Keyboard
@@ -37,55 +37,84 @@ export default function ChatScreen() {
     return () => clearInterval(interval);
   }, [chatId]);
 
+  const [bookingSummary, setBookingSummary] = useState<any>(null);
+
   const loadInitialData = async () => {
     try {
       setLoading(true);
       const userData = await authService.getUserData();
-      setCurrentUser(userData);
-      
-      // ดึงข้อมูลชื่อร้านค้า
-      try {
-        if (chatId) {
-          const shopInfo = await shopService.getShopInfo(chatId as string);
-          if (shopInfo && shopInfo.shopName) {
-              setShopName(shopInfo.shopName);
-              if (shopInfo.image) setShopAvatar(shopInfo.image);
-          } else {
-              setShopName(`ร้านค้า ${chatId.toString().substring(0, 6)}`);
-          }
-        }
-      } catch (e) {
-        setShopName(`ร้านค้า ${chatId?.toString().substring(0, 6)}`);
+      if (userData) {
+        setCurrentUser(userData);
       }
 
-      await fetchMessages();
+      // Fetch shop details if it's a shop
+      if (chatId) {
+        try {
+          const shop = await shopService.getShopInfo(chatId as string);
+          if (shop) {
+            setShopName(shop.shopName || shop.name || `ร้านค้า ${chatId.toString().substring(0, 6)}`);
+            setShopAvatar(shop.image || 'https://picsum.photos/200/200');
+          }
+        } catch (e) {
+          // If not a shop, maybe it's a user
+          setShopName(`ร้านค้า ${chatId?.toString().substring(0, 6)}`);
+        }
+
+        // Fetch Booking Summary if available
+        try {
+          const summary = await chatService.getChatBookingSummary(chatId as string);
+          console.log('Booking Summary:', summary);
+          if (summary && (summary.productName || summary.data)) {
+            setBookingSummary(summary.data || summary);
+          }
+        } catch (e) {
+          console.log('No booking summary available for this chat');
+        }
+      }
+
+      await fetchMessages(userData);
     } catch (error) {
       console.error('Chat Init Error:', error);
     } finally {
       setLoading(false);
-      // เลื่อนลงล่างสุดหลังจากโหลดเสร็จ
-      setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 500);
     }
   };
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (userParam?: any) => {
     if (!chatId) return;
+    const activeUser = userParam || currentUser;
+    if (!activeUser) return;
+
     try {
-      const history = await chatService.getChatHistory(chatId as string);
-      
-      let newMessages = [];
-      if (Array.isArray(history)) {
-        newMessages = history;
-      } else if (history && history.messages) {
-        newMessages = history.messages;
+      const response = await chatService.getChatHistory(chatId as string);
+      console.log('Chat History Response for', chatId, ':', JSON.stringify(response).substring(0, 100));
+
+      let newMessages: ChatMessage[] = [];
+
+      // Extensive fallback for various API response structures
+      if (Array.isArray(response)) {
+        newMessages = response;
+      } else if (response && Array.isArray(response.messages)) {
+        newMessages = response.messages;
+      } else if (response && Array.isArray(response.data)) {
+        newMessages = response.data;
+      } else if (response && response.chat && Array.isArray(response.chat.messages)) {
+        newMessages = response.chat.messages;
+      } else if (response && response.history && Array.isArray(response.history)) {
+        newMessages = response.history;
       }
 
-      // อัปเดตเฉพาะเมื่อมีข้อความใหม่จริงๆ เพื่อไม่ให้กระตุก
-      if (newMessages.length !== messages.length) {
-        setMessages(newMessages);
+      // ตรวจสอบข้อมูลใหม่
+      if (newMessages.length > 0) {
+        if (newMessages.length !== messages.length) {
+          setMessages(newMessages);
+        }
+      } else if (messages.length === 0) {
+        // เฉพาะกรณีที่เดิมว่างอยู่แล้ว
+        setMessages([]);
       }
     } catch (error) {
-      // Quietly handle errors in polling
+      console.log('Fetch error for', chatId, ':', error);
     }
   };
 
@@ -97,21 +126,21 @@ export default function ChatScreen() {
 
     const newMessage: ChatMessage = {
       chatId: chatId as string,
-      senderId: currentUser.id || currentUser._id,
+      senderId: (currentUser.id || currentUser._id).toString(),
       message: currentMessage,
     };
 
     try {
       // Optimistic Update: แสดงผลทันที
       const tempId = Date.now().toString();
-      const optimisticMsg: ChatMessage = { 
-        ...newMessage, 
-        timestamp: new Date().toISOString(), 
-        _id: tempId 
+      const optimisticMsg: ChatMessage = {
+        ...newMessage,
+        timestamp: new Date().toISOString(),
+        _id: tempId
       };
-      
+
       setMessages(prev => [...prev, optimisticMsg]);
-      
+
       // ส่งข้อมูลเข้า Server จริง
       await chatService.sendMessage(newMessage);
       fetchMessages(); // รีโหลดเพื่อเอาจังหวะจริงจาก Server
@@ -121,11 +150,45 @@ export default function ChatScreen() {
     }
   };
 
+  const groupMessagesByDate = (history: ChatMessage[]) => {
+    const groups: { [key: string]: ChatMessage[] } = {};
+
+    // Sort messages to ensure they are in order before grouping
+    const sorted = [...history].sort((a, b) => {
+      const dateA = new Date(a.timestamp || 0).getTime();
+      const dateB = new Date(b.timestamp || 0).getTime();
+      return dateA - dateB;
+    });
+
+    sorted.forEach(msg => {
+      const timestamp = msg.timestamp || new Date().toISOString();
+      const date = new Date(timestamp);
+
+      // Safe check for Invalid Date
+      if (isNaN(date.getTime())) {
+        return;
+      }
+
+      const dateStr = date.toLocaleDateString('th-TH', {
+        day: 'numeric',
+        month: 'short'
+      });
+
+      if (!groups[dateStr]) {
+        groups[dateStr] = [];
+      }
+      groups[dateStr].push(msg);
+    });
+
+    return groups;
+  };
+
   const formatTime = (timestamp?: string) => {
-    if (!timestamp) return 'กำลังส่ง...';
+    if (!timestamp) return '...';
     try {
       const date = new Date(timestamp);
-      return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+      if (isNaN(date.getTime())) return '';
+      return `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
     } catch (e) {
       return '';
     }
@@ -133,20 +196,22 @@ export default function ChatScreen() {
 
   if (loading && messages.length === 0) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F5F5' }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F7F8FA' }}>
         <ActivityIndicator size="large" color="#3498DB" />
       </View>
     );
   }
+
+  const groupedMessages = groupMessagesByDate(messages);
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={28} color="#2C3E50" />
+          <Ionicons name="chevron-back" size={28} color="#000" />
         </TouchableOpacity>
-        
+
         <View style={styles.shopInfo}>
           <Image source={{ uri: shopAvatar }} style={styles.avatar} />
           <Text style={styles.shopName}>{shopName}</Text>
@@ -154,35 +219,67 @@ export default function ChatScreen() {
       </View>
 
       {/* Chat List */}
-      <ScrollView 
+      <ScrollView
         ref={scrollViewRef}
-        style={styles.chatList} 
+        style={styles.chatList}
+        contentContainerStyle={[styles.messageListContainer, { flexGrow: 1 }]}
         showsVerticalScrollIndicator={false}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
       >
-        <View style={{ paddingTop: 10, paddingBottom: 20 }}>
-          {messages.length > 0 ? (
-            messages.map((item, index) => {
-              const isMe = currentUser && (item.senderId === (currentUser.id || currentUser._id));
-              return (
-                <View 
-                  key={item._id || index} 
-                  style={[
-                    styles.messageContainer, 
-                    isMe ? styles.rightMessage : styles.leftMessage
-                  ]}
-                >
-                  <Text style={styles.messageText}>{item.message}</Text>
-                  <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
-                </View>
-              );
-            })
-          ) : (
+        {/* Booking Summary Card */}
+        {bookingSummary && (
+          <View style={styles.summaryCard}>
+            <Image source={{ uri: bookingSummary.image }} style={styles.summaryImage} />
+            <View style={styles.summaryInfo}>
+              <Text style={styles.summaryName} numberOfLines={1}>{bookingSummary.productName}</Text>
+              <Text style={styles.summaryPrice}>฿{bookingSummary.totalPrice?.toLocaleString() || bookingSummary.price?.toLocaleString()}</Text>
+            </View>
+            <TouchableOpacity style={styles.summaryButton}>
+              <Text style={styles.summaryButtonText}>ดูรายละเอียด</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {messages && messages.length > 0 ? (
+          Object.entries(groupedMessages || {}).map(([date, msgs]) => (
+            <React.Fragment key={date}>
+              <View style={styles.dateHeader}>
+                <Text style={styles.dateText}>{date}</Text>
+              </View>
+
+              {msgs.map((item, index) => {
+                const currentUserId = (currentUser?.id || currentUser?._id)?.toString();
+                const senderId = item.senderId?.toString();
+                const isMe = currentUserId === senderId;
+
+                return (
+                  <View
+                    key={item._id || `msg-${index}-${item.timestamp}`}
+                    style={[styles.messageRow, isMe ? styles.rightRow : styles.leftRow]}
+                  >
+                    <View
+                      style={[
+                        styles.messageContainer,
+                        isMe ? styles.rightMessage : styles.leftMessage
+                      ]}
+                    >
+                      <View style={styles.messageContent}>
+                        <Text style={styles.messageText}>{item.message}</Text>
+                        <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
+                      </View>
+                    </View>
+                  </View>
+                );
+              })}
+            </React.Fragment>
+          ))
+        ) : (
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', minHeight: 200 }}>
             <View style={styles.dateHeader}>
               <Text style={styles.dateText}>ยังไม่มีข้อความ เริ่มต้นการสนทนาได้เลย</Text>
             </View>
-          )}
-        </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Input Area */}
@@ -192,9 +289,9 @@ export default function ChatScreen() {
       >
         <View style={styles.inputContainer}>
           <TouchableOpacity style={styles.iconButton}>
-            <Feather name="camera" size={24} color="#34495E" />
+            <Ionicons name="camera-outline" size={32} color="#000" />
           </TouchableOpacity>
-          
+
           <TextInput
             style={styles.textInput}
             placeholder="พิมพ์ข้อความ"
@@ -205,9 +302,9 @@ export default function ChatScreen() {
             onSubmitEditing={handleSend}
             placeholderTextColor="#95A5A6"
           />
-          
-          <TouchableOpacity 
-            style={[styles.sendButton, !message.trim() && { backgroundColor: '#BDC3C7' }]} 
+
+          <TouchableOpacity
+            style={[styles.sendButton, !message.trim() && { backgroundColor: '#BDC3C7' }]}
             onPress={handleSend}
             disabled={!message.trim()}
           >

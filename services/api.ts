@@ -1,3 +1,5 @@
+import * as SecureStore from 'expo-secure-store';
+
 export const API_BASE_URL = 'https://finalrental.onrender.com/api';
 export const RENTAL_BASE_URL = 'https://finalrental.onrender.com';
 
@@ -12,13 +14,16 @@ export const apiRequest = async <T = any>(
   const { withAuth = true, headers = {}, ...rest } = options;
 
   try {
-    const requestHeaders: HeadersInit = {
+    const requestHeaders: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...headers,
+      ...headers as Record<string, string>,
     };
 
     if (withAuth) {
-
+      const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        requestHeaders['Authorization'] = `Bearer ${token}`;
+      }
     }
 
     const response = await fetch(url, {
@@ -87,6 +92,7 @@ export const API_ENDPOINTS = {
   GET_PRODUCTS_BY_USER: '/products/user/{USER_ID}',
 
   // BOOKING / RENTAL
+  GET_USER_RENTALS: '/rentals/user/{USER_ID}',
   CREATE_BOOKING: '/products/user/{USER_ID}',
   APPROVE_RENTAL: '/rentals/{RENTAL_ID}/owner-approve',
   UPDATE_RENTAL_STATUS: '/rentals/{RENTAL_ID}/status',

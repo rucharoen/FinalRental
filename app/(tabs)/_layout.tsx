@@ -91,6 +91,11 @@ export default function TabLayout() {
           tabBarStyle: { display: 'none' }
         }}
       />
+      <Tabs.Screen name="profile/rules" options={{ href: null }} />
+      <Tabs.Screen name="profile/bookings" options={{ href: null }} />
+      <Tabs.Screen name="profile/kyc" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop" options={{ href: null }} />
+      <Tabs.Screen name="profile/address" options={{ href: null }} />
 
 
     </Tabs>

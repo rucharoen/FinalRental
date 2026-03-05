@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -125,40 +125,43 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        height: 80,
+        height: 70,
         backgroundColor: '#FFFFFF',
         flexDirection: 'row',
         alignItems: 'center',
         paddingHorizontal: 15,
         borderTopWidth: 1,
         borderTopColor: '#ECF0F1',
-        paddingBottom: 10,
+        paddingBottom: Platform.OS === 'ios' ? 20 : 0,
     },
     footerIcons: {
         flexDirection: 'row',
-        marginRight: 15,
+        alignItems: 'center',
     },
     iconButton: {
         alignItems: 'center',
-        marginHorizontal: 10,
+        justifyContent: 'center',
+        paddingHorizontal: 10,
     },
     iconLabel: {
         fontSize: 10,
-        color: '#7F8C8D',
+        color: '#000000',
         marginTop: 2,
+        fontWeight: '500',
     },
     rentButton: {
         flex: 1,
         backgroundColor: '#3498DB',
-        height: 50,
-        borderRadius: 10,
+        height: 48,
+        borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
+        marginLeft: 10,
     },
     rentButtonText: {
         color: '#FFFFFF',
         fontSize: 18,
-        fontWeight: 'bold',
+        fontWeight: '500',
     },
     // Timeline Styles
     timelineItem: {

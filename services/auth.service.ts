@@ -52,7 +52,7 @@ class AuthService {
     if (response && response.token) {
       await SecureStore.setItemAsync("userToken", response.token);
       await SecureStore.setItemAsync("userData", JSON.stringify(response.user));
-    }
+    } console.log(response.user)
 
     return response;
   }
@@ -114,6 +114,61 @@ class AuthService {
   async getUserData() {
     const data = await SecureStore.getItemAsync("userData");
     return data ? JSON.parse(data) : null;
+  }
+
+  async getProfile() {
+    const response = await apiRequest(
+      `${API_ENDPOINTS.BASE_URL}/users/profile`,
+      {
+        method: "GET",
+        withAuth: true,
+      }
+    );
+
+    if (response && !response.error) {
+      await SecureStore.setItemAsync("userData", JSON.stringify(response));
+    }
+    return response;
+  }
+
+  async updateProfile(data: any) {
+    const response = await apiRequest(
+      `${API_ENDPOINTS.BASE_URL}/users/profile`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+        withAuth: true,
+      }
+    );
+
+    if (response && !response.error) {
+      const currentData = await this.getUserData();
+      const updatedData = { ...currentData, ...response };
+      await SecureStore.setItemAsync("userData", JSON.stringify(updatedData));
+    }
+    return response;
+  }
+
+  async uploadKYC(formData: any) {
+    const token = await this.getToken();
+    const response = await fetch(`${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.UPLOAD_KYC}`, {
+      method: "POST",
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    // After success, refresh profile to get new status (e.g., 'pending' or 'verified')
+    await this.getProfile();
+
+    return result;
   }
 }
 

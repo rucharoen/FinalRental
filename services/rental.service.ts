@@ -47,6 +47,17 @@ class RentalService {
     );
   }
 
+  async getUserRentals(userId: string) {
+    const url = API_ENDPOINTS.GET_USER_RENTALS.replace('{USER_ID}', userId);
+    return apiRequest(
+      `${API_ENDPOINTS.BASE_URL}${url}`,
+      {
+        method: 'GET',
+        withAuth: true,
+      }
+    );
+  }
+
   async updateRentalStatus(rentalId: string, update: RentalStatusUpdate) {
     const url = API_ENDPOINTS.UPDATE_RENTAL_STATUS.replace('{RENTAL_ID}', rentalId);
     return apiRequest(

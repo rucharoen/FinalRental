@@ -16,11 +16,27 @@ export interface CartItem {
 }
 
 class CartService {
-    private readonly CART_KEY = "userCart";
+    private readonly BASE_CART_KEY = "userCart";
+
+    private async getCartKey(): Promise<string> {
+        const userData = await SecureStore.getItemAsync("userData");
+        if (userData) {
+            try {
+                const user = JSON.parse(userData);
+                if (user && user.id) {
+                    return `${this.BASE_CART_KEY}_${user.id}`;
+                }
+            } catch (e) {
+                console.error("Error parsing userData for cart key:", e);
+            }
+        }
+        return this.BASE_CART_KEY; // Fallback
+    }
 
     async getCartItems(): Promise<CartItem[]> {
         try {
-            const data = await SecureStore.getItemAsync(this.CART_KEY);
+            const key = await this.getCartKey();
+            const data = await SecureStore.getItemAsync(key);
             if (!data) return [];
             const parsed = JSON.parse(data);
             return Array.isArray(parsed) ? parsed : [];
@@ -32,8 +48,13 @@ class CartService {
 
     async addToCart(item: CartItem): Promise<void> {
         try {
+            const key = await this.getCartKey();
             const cart = await this.getCartItems();
-            const existingItemIndex = cart.findIndex(i => i.productId === item.productId && i.startDate === item.startDate && i.endDate === item.endDate);
+            const existingItemIndex = cart.findIndex(i =>
+                i.productId === item.productId &&
+                i.startDate === item.startDate &&
+                i.endDate === item.endDate
+            );
 
             if (existingItemIndex > -1) {
                 cart[existingItemIndex].quantity += item.quantity;
@@ -41,7 +62,7 @@ class CartService {
                 cart.push(item);
             }
 
-            await SecureStore.setItemAsync(this.CART_KEY, JSON.stringify(cart));
+            await SecureStore.setItemAsync(key, JSON.stringify(cart));
         } catch (error) {
             console.error("Error adding to cart:", error);
         }
@@ -49,9 +70,10 @@ class CartService {
 
     async removeFromCart(id: string): Promise<void> {
         try {
+            const key = await this.getCartKey();
             const cart = await this.getCartItems();
             const updatedCart = cart.filter(i => i.id !== id);
-            await SecureStore.setItemAsync(this.CART_KEY, JSON.stringify(updatedCart));
+            await SecureStore.setItemAsync(key, JSON.stringify(updatedCart));
         } catch (error) {
             console.error("Error removing from cart:", error);
         }
@@ -59,11 +81,12 @@ class CartService {
 
     async updateQuantity(id: string, newQuantity: number): Promise<void> {
         try {
+            const key = await this.getCartKey();
             const cart = await this.getCartItems();
             const index = cart.findIndex(i => i.id === id);
             if (index > -1) {
                 cart[index].quantity = Math.max(1, newQuantity);
-                await SecureStore.setItemAsync(this.CART_KEY, JSON.stringify(cart));
+                await SecureStore.setItemAsync(key, JSON.stringify(cart));
             }
         } catch (error) {
             console.error("Error updating quantity:", error);
@@ -71,7 +94,8 @@ class CartService {
     }
 
     async clearCart(): Promise<void> {
-        await SecureStore.deleteItemAsync(this.CART_KEY);
+        const key = await this.getCartKey();
+        await SecureStore.deleteItemAsync(key);
     }
 }
 

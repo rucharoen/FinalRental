@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  Modal, 
-  TouchableOpacity, 
-  Image, 
-  StyleSheet, 
-  Dimensions, 
+import {
+  View,
+  Text,
+  Modal,
+  TouchableOpacity,
+  Image,
+  StyleSheet,
+  Dimensions,
   TouchableWithoutFeedback,
   ScrollView
 } from 'react-native';
@@ -47,7 +47,7 @@ const SelectionModal: React.FC<SelectionModalProps> = ({ visible, onClose, produ
       setShowCalendar(true);
       return;
     }
-    
+
     onClose();
     // Navigate to checkout with product and date info
     router.push({
@@ -74,113 +74,96 @@ const SelectionModal: React.FC<SelectionModalProps> = ({ visible, onClose, produ
             <View style={styles.modalContainer}>
               <View style={styles.modalContent}>
                 <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                  <Ionicons name="close-circle-outline" size={32} color="#7F8C8D" />
+                  <Ionicons name="close-circle-outline" size={30} color="#7F8C8D" />
                 </TouchableOpacity>
 
-                {type === 'rent' ? (
-                  /* Direct Calendar View for Rent */
-                  <View style={styles.calendarContainer}>
-                    <Calendar 
-                      onSelectRange={(start: string, end: string) => {
-                        setStartDate(start);
-                        setEndDate(end);
-                      }}
-                      onClose={onClose}
-                    />
+                <>
+                  <View style={styles.productRow}>
+                    <View style={styles.imageWrapper}>
+                      <Image
+                        source={{ uri: product.images && product.images.length > 0 ? product.images[0] : '' }}
+                        style={styles.modalProductImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <View style={styles.productInfo}>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.modalPrice}>{product.price_per_day.toLocaleString()}</Text>
+                        <Text style={styles.modalPriceUnit}> ฿/วัน</Text>
+                      </View>
+                      <Text style={styles.modalDeposit}>เงินมัดจำ {product.deposit}฿</Text>
+                    </View>
                   </View>
-                ) : (
-                  /* Product Selection View for Add to Cart */
-                  <>
-                    <View style={styles.productRow}>
-                      <View style={styles.imageWrapper}>
-                        <Image 
-                          source={{ uri: product.images && product.images.length > 0 ? product.images[0] : '' }} 
-                          style={styles.modalProductImage}
-                          resizeMode="contain"
-                        />
-                      </View>
-                      <View style={styles.productInfo}>
-                        <View style={styles.priceRow}>
-                          <Text style={styles.modalPrice}>{product.price_per_day.toLocaleString()}</Text>
-                          <Text style={styles.modalPriceUnit}> ฿/วัน</Text>
-                        </View>
-                        <Text style={styles.modalDeposit}>เงินมัดจำ {product.deposit}฿</Text>
-                      </View>
-                    </View>
 
-                    <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>เลือก</Text>
-                      <View style={styles.optionsRow}>
-                        <View style={[styles.optionButton, styles.selectedOptionButton]}>
-                          <Text style={styles.selectedOptionText}>{product.name}</Text>
-                        </View>
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>เลือก</Text>
+                    <View style={styles.optionsRow}>
+                      <View style={styles.optionButton}>
+                        <Text style={styles.optionText}>{product.name}</Text>
                       </View>
                     </View>
+                  </View>
 
-                    <View style={styles.section}>
-                      <Text style={styles.sectionTitle}>ระยะเวลาเช่า</Text>
-                      <TouchableOpacity 
-                        style={styles.dateSelector}
-                        onPress={() => setShowCalendar(true)}
-                      >
-                        <Text style={styles.dateSelectorText}>
-                          {startDate && endDate ? `${startDate} - ${endDate}` : 'เลือกวันที่'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </>
-                )}
+                  <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>ระยะเวลาเช่า</Text>
+                    <TouchableOpacity
+                      style={styles.dateSelector}
+                      onPress={() => setShowCalendar(true)}
+                    >
+                      <Text style={styles.dateSelectorText}>
+                        {startDate && endDate ? `${startDate} - ${endDate}` : 'เลือกวันที่'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
               </View>
 
               {/* Action Button Footer */}
               <View style={styles.modalFooter}>
                 <View style={styles.footerInner}>
-                   <TouchableOpacity 
+                  <TouchableOpacity
                     style={styles.cartIconButton}
                     onPress={async () => {
-                        if (!startDate || !endDate) {
-                          alert('กรุณาเลือกวันที่เช่า (วันแรกและวันสุดท้าย)');
-                          setShowCalendar(true);
-                          return;
-                        }
-                        const cartItem = {
-                          id: Math.random().toString(36).substr(2, 9),
-                          productId: product.id,
-                          shopName: 'Shop ' + product.shop_id,
-                          productName: product.name,
-                          image: (product.images && product.images.length > 0) ? product.images[0] : '',
-                          rentPeriod: `${startDate} - ${endDate}`,
-                          price: product.price_per_day,
-                          quantity: 1,
-                          selected: true,
-                          shopSelected: false,
-                          startDate,
-                          endDate
-                        };
-                        await cartService.addToCart(cartItem as any);
-                        onClose();
-                        router.push('/cart' as any);
+                      if (!startDate || !endDate) {
+                        alert('กรุณาเลือกวันที่เช่า (วันแรกและวันสุดท้าย)');
+                        setShowCalendar(true);
+                        return;
+                      }
+                      const cartItem = {
+                        id: Math.random().toString(36).substr(2, 9),
+                        productId: product.id,
+                        shopName: 'Shop ' + product.shop_id,
+                        productName: product.name,
+                        image: (product.images && product.images.length > 0) ? product.images[0] : '',
+                        rentPeriod: `${startDate} - ${endDate}`,
+                        price: product.price_per_day,
+                        quantity: 1,
+                        selected: true,
+                        shopSelected: false,
+                        startDate,
+                        endDate
+                      };
+                      await cartService.addToCart(cartItem as any);
+                      onClose();
+                      router.push('/cart' as any);
                     }}
-                   >
-                      <Ionicons name="cart-outline" size={30} color="#7F8C8D" />
-                      <Text style={styles.cartIconLabel}>เพิ่มไปยังรถเข็น</Text>
-                   </TouchableOpacity>
-                   <TouchableOpacity 
-                    style={[
-                      styles.confirmButton,
-                      (!startDate || !endDate) && styles.disabledConfirmButton
-                    ]}
+                  >
+                    <Ionicons name="cart-outline" size={30} color="#7F8C8D" />
+                    <Text style={styles.cartIconLabel}>เพิ่มไปยังรถเข็น</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.confirmButton}
                     onPress={handleConfirm}
-                   >
+                  >
                     <Text style={styles.confirmButtonText}>เช่าเลย</Text>
-                   </TouchableOpacity>
+                  </TouchableOpacity>
                 </View>
               </View>
 
               {/* Calendar Overlay for Cart mode date selection */}
-              {showCalendar && type === 'cart' && (
+              {showCalendar && (
                 <View style={styles.calendarOverlay}>
-                  <Calendar 
+                  <Calendar
                     onSelectRange={(start: string, end: string) => {
                       setStartDate(start);
                       setEndDate(end);
@@ -254,7 +237,7 @@ const styles = StyleSheet.create({
     color: '#E74C3C',
   },
   modalPriceUnit: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#E74C3C',
     fontWeight: '500',
   },
@@ -326,9 +309,10 @@ const styles = StyleSheet.create({
   },
   cartIconLabel: {
     fontSize: 10,
-    color: '#2C3E50',
-    marginTop: 4,
+    color: '#000000',
+    marginTop: 2,
     textAlign: 'center',
+    fontWeight: '500',
   },
   calendarContainer: {
     marginTop: 20,
@@ -337,10 +321,11 @@ const styles = StyleSheet.create({
   confirmButton: {
     flex: 1,
     backgroundColor: '#3498DB',
-    height: 50,
-    borderRadius: 10,
+    height: 48,
+    borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
+    marginLeft: 10,
   },
   disabledConfirmButton: {
     backgroundColor: '#BDC3C7',
@@ -348,7 +333,7 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     color: '#FFFFFF',
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '500',
   },
   calendarOverlay: {
     position: 'absolute',

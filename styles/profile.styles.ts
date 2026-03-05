@@ -150,7 +150,75 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         color: '#E74C3C',
-    }
+    },
+    switchContainer: {
+        flexDirection: 'row',
+        backgroundColor: '#F0F0F0',
+        borderRadius: 25,
+        padding: 5,
+        marginHorizontal: 40,
+        marginTop: 10,
+        marginBottom: 20,
+    },
+    switchButton: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 20,
+    },
+    activeSwitch: {
+        backgroundColor: '#3498DB',
+    },
+    switchText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#7F8C8D',
+    },
+    activeSwitchText: {
+        color: '#FFFFFF',
+    },
+    topSwitchWrapper: {
+        flexDirection: 'row',
+        justifyContent: 'flex-end',
+        paddingHorizontal: 15,
+        paddingTop: 10,
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        zIndex: 10,
+    },
+    topSwitchContainer: {
+        borderRadius: 20,
+        overflow: 'hidden',
+    },
+    topSwitchPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
+        borderWidth: 1.5,
+        borderColor: '#3498DB',
+        shadowColor: '#3498DB',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
+    },
+    topSwitchPillActive: {
+        backgroundColor: '#3498DB',
+        borderColor: '#3498DB',
+    },
+    topSwitchLabel: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: '#3498DB',
+        marginLeft: 4,
+    },
+    topSwitchLabelActive: {
+        color: '#FFFFFF',
+    },
 });
 
 export default styles;

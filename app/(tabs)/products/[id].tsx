@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  Image, 
-  ScrollView, 
-  TouchableOpacity, 
-  ActivityIndicator, 
-  SafeAreaView 
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  SafeAreaView
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons, Feather, MaterialCommunityIcons, AntDesign } from '@expo/vector-icons';
+import { Alert } from 'react-native';
+import authService from '../../../services/auth.service';
 import productService, { Product } from '@/services/product.service';
 import SelectionModal from '@/components/SelectionModal';
 import styles from '@/styles/product-detail';
@@ -31,28 +33,28 @@ export default function ProductDetailScreen() {
   }, [id]);
 
 
-const fetchProduct = async () => {
-  try {
-    setLoading(true);
-    // ดึงสินค้าทั้งหมดมาหารายการที่ตรงกับ ID
-    const allProducts = await productService.getProducts();
-    const foundProduct = allProducts.find(p => p.id.toString() === id);
-    
-    if (foundProduct) {
-      setProduct(foundProduct);
-    } else {
-      // หากหาไม่พบในรายการ ให้ลองเรียก API รายตัวเป็นทางเลือกสุดท้าย
-      const data = await productService.getProductById(id as string);
-      setProduct(data);
-    }
-  } catch (error) {
-    console.error('Error fetching product details:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+      // ดึงสินค้าทั้งหมดมาหารายการที่ตรงกับ ID
+      const allProducts = await productService.getProducts();
+      const foundProduct = allProducts.find(p => p.id.toString() === id);
 
-  
+      if (foundProduct) {
+        setProduct(foundProduct);
+      } else {
+        // หากหาไม่พบในรายการ ให้ลองเรียก API รายตัวเป็นทางเลือกสุดท้าย
+        const data = await productService.getProductById(id as string);
+        setProduct(data);
+      }
+    } catch (error) {
+      console.error('Error fetching product details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
 
   if (loading) {
     return (
@@ -61,7 +63,7 @@ const fetchProduct = async () => {
       </View>
     );
   }
-  
+
 
   if (!product) {
     return (
@@ -70,6 +72,60 @@ const fetchProduct = async () => {
       </View>
     );
   }
+
+  const handleRentPress = async () => {
+    try {
+      // ดึงข้อมูลโปรไฟล์ล่าสุดเพื่อให้แน่ใจว่าสถานะ KYC เป็นปัจจุบัน
+      let userData: any = null;
+      try {
+        userData = await authService.getProfile();
+      } catch (profileError: any) {
+        console.warn('Could not fetch fresh profile (404), falling back to local data:', profileError.message);
+        // หาก API ประสบปัญหา 404 ให้ใช้ข้อมูลล่าสุดที่บันทึกไว้ในเครื่องแทน
+        userData = await authService.getUserData();
+      }
+
+      if (!userData || userData.error) {
+        Alert.alert("ไม่พบข้อมูลผู้ใช้", "กรุณาเข้าสู่ระบบใหม่อีกครั้ง", [
+          { text: "ตกลง", onPress: () => router.push('/login') }
+        ]);
+        return;
+      }
+
+      // ตรวจสอบสถานะ KYC (รองรับทั้ง verified และ approved)
+      const status = userData.kyc_status;
+      if (status !== 'verified' && status !== 'approved') {
+        Alert.alert(
+          "ยืนยันตัวตน",
+          "สถานะปัจจุบันของคุณคือ: " + (status || 'ยังไม่ได้ดำเนินการ') + "\nกรุณายืนยันตัวตนก่อนถึงจะทำการเช่าได้",
+          [
+            { text: "ยกเลิก", style: "cancel" },
+            { text: "ไปหน้ายืนยันตัวตน", onPress: () => router.push('/(tabs)/profile/kyc') }
+          ]
+        );
+        return;
+      }
+
+      // Check Address
+      if (!userData.address || userData.address === 'ไม่ระบุที่อยู่') {
+        Alert.alert(
+          "เพิ่มที่อยู่",
+          "กรุณาเพิ่มที่อยู่สำหรับจัดส่งก่อนทำการเช่า",
+          [
+            { text: "ยกเลิก", style: "cancel" },
+            { text: "ไปหน้าเพิ่มที่อยู่", onPress: () => router.push('/(tabs)/profile/address') }
+          ]
+        );
+        return;
+      }
+
+      setModalType('rent');
+      setModalVisible(true);
+    } catch (error: any) {
+      console.error('Error in handleRentPress:', error);
+      Alert.alert("เกิดข้อผิดพลาด", "ไม่สามารถตรวจสอบข้อมูลสมาชิกได้: " + (error.message || "ปัญหาการเชื่อมต่อ"));
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -82,8 +138,8 @@ const fetchProduct = async () => {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Product Image */}
         <View style={styles.imageContainer}>
-          <Image 
-            source={{ uri: product.images && product.images.length > 0 ? product.images[0] : '' }} 
+          <Image
+            source={{ uri: product.images && product.images.length > 0 ? product.images[0] : '' }}
             style={styles.productImage}
             resizeMode="contain"
           />
@@ -110,13 +166,13 @@ const fetchProduct = async () => {
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'details' && styles.activeTab]}
             onPress={() => setActiveTab('details')}
           >
             <Text style={[styles.tabLabel, activeTab === 'details' && styles.activeTabLabel]}>รายละเอียดสินค้า</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={[styles.tab, activeTab === 'terms' && styles.activeTab]}
             onPress={() => setActiveTab('terms')}
           >
@@ -136,7 +192,7 @@ const fetchProduct = async () => {
           ) : (
             <View>
               <Text style={[styles.sectionTitle, { marginBottom: 20 }]}>ขั้นตอนการเช่า</Text>
-              
+
               {/* Step 1 */}
               <View style={styles.timelineItem}>
                 <View style={styles.timelineDotOuter}>
@@ -207,14 +263,14 @@ const fetchProduct = async () => {
       {/* Footer */}
       <View style={styles.footer}>
         <View style={styles.footerIcons}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.iconButton}
             onPress={() => router.push(`/(tabs)/chat/${product.owner_id || 'default'}`)}
           >
             <Ionicons name="chatbubble-ellipses-outline" size={24} color="#7F8C8D" />
             <Text style={styles.iconLabel}>แชท</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.iconButton}
             onPress={() => {
               setModalType('cart');
@@ -225,18 +281,15 @@ const fetchProduct = async () => {
             <Text style={styles.iconLabel}>เพิ่มไปยังรถเข็น</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.rentButton}
-          onPress={() => {
-            setModalType('rent');
-            setModalVisible(true);
-          }}
+          onPress={handleRentPress}
         >
           <Text style={styles.rentButtonText}>เช่าเลย</Text>
         </TouchableOpacity>
       </View>
 
-      <SelectionModal 
+      <SelectionModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
         product={product}

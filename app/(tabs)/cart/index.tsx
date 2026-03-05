@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  Image, 
-  ScrollView, 
-  TouchableOpacity, 
-  SafeAreaView, 
-  StyleSheet, 
-  Dimensions 
+import {
+  View,
+  Text,
+  Image,
+  ScrollView,
+  TouchableOpacity,
+  SafeAreaView,
+  StyleSheet,
+  Dimensions
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -40,7 +40,7 @@ export default function CartScreen() {
   };
 
   const toggleSelectItem = (id: string) => {
-    setCartItems(prev => prev.map(item => 
+    setCartItems(prev => prev.map(item =>
       item.id === id ? { ...item, selected: !item.selected } : item
     ));
   };
@@ -50,7 +50,7 @@ export default function CartScreen() {
       .filter(item => item.shopName === shopName)
       .every(item => item.selected);
 
-    setCartItems(prev => prev.map(item => 
+    setCartItems(prev => prev.map(item =>
       item.shopName === shopName ? { ...item, selected: !isCurrentlySelected, shopSelected: !isCurrentlySelected } : item
     ));
   };
@@ -58,10 +58,10 @@ export default function CartScreen() {
   const updateQuantity = async (id: string, delta: number) => {
     const item = cartItems.find(i => i.id === id);
     if (!item) return;
-    
+
     const newQty = Math.max(1, item.quantity + delta);
     await cartService.updateQuantity(id, newQty);
-    setCartItems(prev => prev.map(item => 
+    setCartItems(prev => prev.map(item =>
       item.id === id ? { ...item, quantity: newQty } : item
     ));
   };
@@ -73,7 +73,7 @@ export default function CartScreen() {
 
   const renderRightActions = (id: string) => {
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.deleteButton}
         onPress={() => handleDelete(id)}
       >
@@ -86,7 +86,7 @@ export default function CartScreen() {
   const totalPrice = cartItems
     .filter(item => item.selected)
     .reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  
+
   const shippingFee = totalPrice > 0 ? 50 : 0;
 
   // Group items by shop
@@ -98,6 +98,13 @@ export default function CartScreen() {
     return acc;
   }, {} as Record<string, CartItem[]>);
 
+  const toggleSelectAll = () => {
+    const isAllSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
+    setCartItems(prev => prev.map(item => ({ ...item, selected: !isAllSelected })));
+  };
+
+  const isAllSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
@@ -106,7 +113,9 @@ export default function CartScreen() {
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={28} color="#2C3E50" />
           </TouchableOpacity>
-          <Text style={styles.editButton}>แก้ไข</Text>
+          <TouchableOpacity>
+            <Text style={styles.editButton}>แก้ไข</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -115,7 +124,7 @@ export default function CartScreen() {
             <View style={styles.emptyContainer}>
               <Ionicons name="cart-outline" size={80} color="#BDC3C7" />
               <Text style={styles.emptyText}>ไม่มีสินค้าในรถเข็น</Text>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.shopNowBtn}
                 onPress={() => router.push('/')}
               >
@@ -126,30 +135,32 @@ export default function CartScreen() {
 
           {/* Cart Item Group by Shop */}
           {Object.entries(groupedItems).map(([shopName, items]) => (
-            <View key={shopName} style={styles.shopContainer}>
+            <View key={shopName} style={styles.shopCard}>
               <View style={styles.shopHeader}>
                 <TouchableOpacity onPress={() => toggleSelectShop(shopName)}>
-                  <Ionicons 
-                    name={items.every(i => i.selected) ? "radio-button-on" : "radio-button-off"} 
-                    size={24} 
-                    color={items.every(i => i.selected) ? "#3498DB" : "#BDC3C7"} 
+                  <Ionicons
+                    name={items.every(i => i.selected) ? "checkmark-circle" : "ellipse-outline"}
+                    size={24}
+                    color={items.every(i => i.selected) ? "#3498DB" : "#BDC3C7"}
                   />
                 </TouchableOpacity>
-                <Text style={styles.shopName}>{shopName}</Text>
+                <MaterialCommunityIcons name="store-outline" size={20} color="#333" style={{ marginLeft: 8 }} />
+                <Text style={styles.shopName} numberOfLines={1}>{shopName}</Text>
+                <Ionicons name="chevron-forward" size={16} color="#BDC3C7" />
               </View>
 
-              {items.map((item) => (
+              {items.map((item, index) => (
                 <View key={item.id}>
                   <Swipeable renderRightActions={() => renderRightActions(item.id)}>
                     <View style={styles.productRow}>
-                      <TouchableOpacity onPress={() => toggleSelectItem(item.id)}>
-                        <Ionicons 
-                          name={item.selected ? "radio-button-on" : "radio-button-off"} 
-                          size={24} 
-                          color={item.selected ? "#3498DB" : "#BDC3C7"} 
+                      <TouchableOpacity onPress={() => toggleSelectItem(item.id)} style={styles.checkbox}>
+                        <Ionicons
+                          name={item.selected ? "checkmark-circle" : "ellipse-outline"}
+                          size={24}
+                          color={item.selected ? "#3498DB" : "#BDC3C7"}
                         />
                       </TouchableOpacity>
-                      
+
                       <View style={styles.productImageWrapper}>
                         <Image source={{ uri: item.image }} style={styles.productImage} />
                       </View>
@@ -161,57 +172,61 @@ export default function CartScreen() {
                         <View style={styles.rentPeriodBadge}>
                           <Text style={styles.rentPeriodText}>{item.rentPeriod}</Text>
                         </View>
-                        
+
                         <View style={styles.priceAndQuantity}>
-                          <Text style={styles.priceText}>{item.price} ฿</Text>
-                          
+                          <Text style={styles.priceText}>{item.price.toLocaleString()} ฿</Text>
+
                           <View style={styles.quantityControl}>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                               style={styles.quantityBtn}
                               onPress={() => updateQuantity(item.id, -1)}
                             >
-                              <Text style={styles.quantityBtnText}>-</Text>
+                              <Ionicons name="remove" size={16} color="#333" />
                             </TouchableOpacity>
                             <View style={styles.quantityValueBox}>
                               <Text style={styles.quantityText}>{item.quantity}</Text>
                             </View>
-                            <TouchableOpacity 
+                            <TouchableOpacity
                               style={styles.quantityBtn}
                               onPress={() => updateQuantity(item.id, 1)}
                             >
-                              <Text style={styles.quantityBtnText}>+</Text>
+                              <Ionicons name="add" size={16} color="#333" />
                             </TouchableOpacity>
                           </View>
                         </View>
                       </View>
                     </View>
                   </Swipeable>
-                  <View style={styles.divider} />
+                  {index < items.length - 1 && <View style={styles.divider} />}
                 </View>
               ))}
             </View>
           ))}
+          <View style={{ height: 20 }} />
         </ScrollView>
 
         {/* Bottom Footer */}
         <View style={styles.footer}>
-          <View style={styles.selectAllContainer}>
-            <TouchableOpacity style={styles.selectAllRow}>
-              <Ionicons name="radio-button-off" size={24} color="#BDC3C7" />
-              <Text style={styles.selectAllText}>ทั้งหมด</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity style={styles.selectAllRow} onPress={toggleSelectAll}>
+            <Ionicons
+              name={isAllSelected ? "checkmark-circle" : "ellipse-outline"}
+              size={24}
+              color={isAllSelected ? "#3498DB" : "#BDC3C7"}
+            />
+            <Text style={styles.selectAllText}>เลือกทั้งหมด</Text>
+          </TouchableOpacity>
 
-          <View style={styles.sumAndAction}>
-             <View style={styles.totalInfo}>
-                <View style={styles.totalRow}>
-                   <Text style={[styles.totalAmountText, { color: '#E74C3C' }]}>{totalPrice} ฿</Text>
-                </View>
-                <Text style={styles.shippingText}>ค่าส่ง {shippingFee} ฿</Text>
-             </View>
-             <TouchableOpacity style={styles.checkoutBtn}>
-                <Text style={styles.checkoutBtnText}>จอง</Text>
-             </TouchableOpacity>
+          <View style={styles.checkoutSection}>
+            <View style={styles.totalInfo}>
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>รวม: </Text>
+                <Text style={styles.totalAmountText}>{totalPrice.toLocaleString()} ฿</Text>
+              </View>
+              {shippingFee > 0 && <Text style={styles.shippingText}>ค่าส่ง {shippingFee} ฿</Text>}
+            </View>
+            <TouchableOpacity style={[styles.checkoutBtn, totalPrice === 0 && styles.disabledBtn]}>
+              <Text style={styles.checkoutBtnText}>ชำระเงิน</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>
@@ -222,55 +237,71 @@ export default function CartScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F5F6F7',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 15,
     paddingTop: 10,
     paddingBottom: 15,
+    backgroundColor: '#FFFFFF',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
   },
   backButton: {
     padding: 5,
   },
   editButton: {
-    fontSize: 18,
-    color: '#2C3E50',
-    fontWeight: '500',
+    fontSize: 16,
+    color: '#333',
   },
   scrollContent: {
     flex: 1,
-    paddingHorizontal: 15,
   },
-  shopContainer: {
-    marginBottom: 20,
+  shopCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 12,
+    marginTop: 12,
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   shopHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   shopName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 10,
-    color: '#000',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 4,
+    marginRight: 4,
+    maxWidth: width * 0.6,
+  },
+  checkbox: {
+    marginRight: 10,
   },
   productRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 10,
-    backgroundColor: '#FFFFFF', // Required for Swipeable to look correct
+    backgroundColor: '#FFFFFF',
   },
   productImageWrapper: {
-    width: 85,
-    height: 85,
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
+    width: 80,
+    height: 80,
     borderRadius: 8,
-    marginHorizontal: 10,
+    backgroundColor: '#F9F9F9',
     overflow: 'hidden',
   },
   productImage: {
@@ -280,23 +311,24 @@ const styles = StyleSheet.create({
   },
   productInfo: {
     flex: 1,
+    marginLeft: 12,
   },
   productName: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#000',
-    marginBottom: 5,
+    color: '#333',
+    marginBottom: 4,
+    lineHeight: 18,
   },
   rentPeriodBadge: {
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#F5F6F7',
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 3,
     borderRadius: 4,
     alignSelf: 'flex-start',
     marginBottom: 8,
   },
   rentPeriodText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#7F8C8D',
   },
   priceAndQuantity: {
@@ -313,49 +345,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#ECF0F1',
+    borderColor: '#E0E0E0',
     borderRadius: 4,
-    backgroundColor: '#F8F9F9',
   },
   quantityBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 2,
+    width: 28,
+    height: 28,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  quantityBtnText: {
-    fontSize: 14,
-    color: '#95A5A6',
+    backgroundColor: '#F9F9F9',
   },
   quantityValueBox: {
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: '#ECF0F1',
-    paddingHorizontal: 12,
-    backgroundColor: '#FFFFFF',
+    borderColor: '#E0E0E0',
+    paddingHorizontal: 10,
+    minWidth: 35,
+    alignItems: 'center',
   },
   quantityText: {
-    fontSize: 12,
-    color: '#2C3E50',
+    fontSize: 13,
+    color: '#333',
   },
   divider: {
     height: 1,
-    backgroundColor: '#ECF0F1',
-    marginTop: 5,
-    marginBottom: 5,
+    backgroundColor: '#F0F0F0',
+    marginVertical: 4,
   },
   footer: {
     borderTopWidth: 1,
-    borderTopColor: '#ECF0F1',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
+    borderTopColor: '#EEEEEE',
+    paddingHorizontal: 15,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
-  },
-  selectAllContainer: {
-    flex: 1,
+    paddingBottom: 25,
   },
   selectAllRow: {
     flexDirection: 'row',
@@ -363,35 +389,44 @@ const styles = StyleSheet.create({
   },
   selectAllText: {
     fontSize: 14,
-    color: '#7F8C8D',
+    color: '#333',
     marginLeft: 8,
   },
-  sumAndAction: {
+  checkoutSection: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   totalInfo: {
     alignItems: 'flex-end',
-    marginRight: 15,
+    marginRight: 12,
   },
   totalRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
   },
+  totalLabel: {
+    fontSize: 14,
+    color: '#333',
+  },
   totalAmountText: {
     fontSize: 18,
     fontWeight: 'bold',
+    color: '#E74C3C',
   },
   shippingText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#2ECC71',
-    marginTop: 2,
   },
   checkoutBtn: {
     backgroundColor: '#3498DB',
-    paddingHorizontal: 25,
+    paddingHorizontal: 20,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 22,
+    minWidth: 100,
+    alignItems: 'center',
+  },
+  disabledBtn: {
+    backgroundColor: '#BDC3C7',
   },
   checkoutBtnText: {
     color: '#FFFFFF',
@@ -400,27 +435,27 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
-    height: 400,
+    height: 500,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingTop: 50,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 16,
     color: '#BDC3C7',
-    marginTop: 20,
-    marginBottom: 30,
+    marginTop: 15,
+    marginBottom: 20,
   },
   shopNowBtn: {
-    backgroundColor: '#3498DB',
-    paddingHorizontal: 40,
-    paddingVertical: 12,
-    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#3498DB',
+    paddingHorizontal: 30,
+    paddingVertical: 10,
+    borderRadius: 20,
   },
   shopNowBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+    color: '#3498DB',
+    fontSize: 15,
+    fontWeight: '500',
   },
   deleteButton: {
     backgroundColor: '#E74C3C',
@@ -431,8 +466,7 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-    marginTop: 5,
+    fontSize: 14,
+    fontWeight: '600',
   }
 });
