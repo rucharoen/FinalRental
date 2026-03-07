@@ -122,17 +122,22 @@ export default function KYCScreen() {
 
     const handleSubmit = async () => {
         try {
-            // เตรียมข้อมูลสำหรับส่งแบบ Multipart
+            // เตรียมข้อมูลสำหรับส่งแบบ Multipart (ปรับให้ตรงกับ Backend และ Admin)
             const formData = new FormData();
-            formData.append('full_name', fullName);
-            formData.append('id_number', idNumber);
-            formData.append('expiry_date', expiryDate);
+            formData.append('id_card_number', idNumber);
+            formData.append('full_name', fullName);           // เพิ่มกลับเข้าไป
+            formData.append('expiry_date', expiryDate);        // เพิ่มกลับเข้าไป
+
+            console.log('--- KYC DEBUG ---');
+            console.log('Target URL:', `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.UPLOAD_KYC}`);
+            console.log('ID Number:', idNumber);
 
             if (idImage) {
-                const idFileName = idImage.split('/').pop();
-                const idMatch = /\.(\w+)$/.exec(idFileName || '');
-                const idType = idMatch ? `image/${idMatch[1]}` : `image`;
-                formData.append('id_image', {
+                const idFileName = idImage.split('/').pop() || 'id_card.jpg';
+                const idMatch = /\.(\w+)$/.exec(idFileName);
+                const idType = idMatch ? `image/${idMatch[1].toLowerCase()}` : 'image/jpeg';
+
+                formData.append('id_card_image', {
                     uri: idImage,
                     name: idFileName,
                     type: idType,
@@ -140,10 +145,11 @@ export default function KYCScreen() {
             }
 
             if (selfieImage) {
-                const selfieFileName = selfieImage.split('/').pop();
-                const selfieMatch = /\.(\w+)$/.exec(selfieFileName || '');
-                const selfieType = selfieMatch ? `image/${selfieMatch[1]}` : `image`;
-                formData.append('selfie_image', {
+                const selfieFileName = selfieImage.split('/').pop() || 'selfie.jpg';
+                const selfieMatch = /\.(\w+)$/.exec(selfieFileName);
+                const selfieType = selfieMatch ? `image/${selfieMatch[1].toLowerCase()}` : 'image/jpeg';
+
+                formData.append('face_image', {
                     uri: selfieImage,
                     name: selfieFileName,
                     type: selfieType,
@@ -158,9 +164,10 @@ export default function KYCScreen() {
                 'ข้อมูลของคุณได้รับการบันทึกแล้ว ระบบจะอัปเดตสถานะการยืนยันตัวตนของคุณในลำดับถัดไป',
                 [{ text: 'ตกลง', onPress: () => router.push('/(tabs)/profile') }]
             );
-        } catch (error) {
+        } catch (error: any) {
             console.error('KYC Submit Error:', error);
-            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถส่งข้อมูลได้ กรุณาลองใหม่อีกครั้ง');
+            const errorMsg = error?.message || 'ไม่สามารถส่งข้อมูลได้ กรุณาลองใหม่อีกครั้ง';
+            Alert.alert('เกิดข้อผิดพลาด', errorMsg);
         }
     };
 

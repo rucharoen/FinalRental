@@ -6,15 +6,27 @@ import {
   Image,
   TouchableOpacity,
   SafeAreaView,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons, Fontisto } from "@expo/vector-icons";
 
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import AuthService from '../services/auth.service';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+
+  React.useEffect(() => {
+    const checkAuth = async () => {
+      const token = await AuthService.getToken();
+      if (token) {
+        router.replace("/(tabs)");
+      }
+    };
+    checkAuth();
+  }, []);
 
   const handleSocialLogin = async (platform: string) => {
     try {
@@ -29,20 +41,61 @@ export default function WelcomeScreen() {
         endpoint = process.env.EXPO_PUBLIC_AUTH_LOGIN_GOOGLE || '/auth/google/callback';
       }
 
-      if (!baseUrl) return;
+      if (!baseUrl) {
+        Alert.alert('Error', 'API Base URL is not defined');
+        return;
+      }
 
       const authUrl = `${baseUrl}${endpoint}`;
       const redirectUrl = Linking.createURL('/');
+
+      console.log('--- Social Login Debug ---');
+      console.log('Auth URL:', authUrl);
+      console.log('Redirect URL:', redirectUrl);
+
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
 
       if (result.type === 'success' && result.url) {
-        const { queryParams } = Linking.parse(result.url);
-        if (queryParams?.token) {
-          router.replace('/(tabs)');
+        console.log('Success, URL:', result.url);
+
+        // Manual parsing as fallback
+        let token: string | null = null;
+        const match = result.url.match(/[?#&](?:token|accessToken|access_token)=([^&]+)/);
+        if (match) {
+          token = match[1];
+        } else {
+          const parsed = Linking.parse(result.url);
+          token = (parsed.queryParams?.token ||
+            parsed.queryParams?.accessToken ||
+            parsed.queryParams?.access_token) as string;
         }
+
+        if (token) {
+          try {
+            console.log('Token found, saving...');
+            await AuthService.setToken(token);
+            // โหลดข้อมูลโปรไฟล์
+            await AuthService.getProfile();
+            console.log('Login successful, navigating to Home');
+            router.replace('/(tabs)');
+          } catch (profileError: any) {
+            console.error('Profile fetch failed:', profileError);
+            Alert.alert('เข้าสู่ระบบสำเร็จ', 'แต่ไม่สามารถโหลดข้อมูลโปรไฟล์ได้: ' + profileError.message);
+            router.replace('/(tabs)');
+          }
+        } else {
+          console.warn('No token found in response URL:', result.url);
+          Alert.alert('ล้มเหลว', 'ไม่พบ Token ใน URL ที่ตอบกลับมา: ' + result.url);
+        }
+      } else if (result.type === 'cancel') {
+        console.log('User cancelled login');
+      } else {
+        console.log('Login session failed or dismissed:', result.type);
+        // Alert.alert('การเข้าสู่ระบบถูกยกเลิก', 'สถานะ: ' + result.type);
       }
-    } catch (error) {
-      // Login failed silently for user experience
+    } catch (error: any) {
+      console.error('Social Login Error:', error);
+      Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถเชื่อมต่อกับระบบได้: ' + error.message);
     }
 
   };

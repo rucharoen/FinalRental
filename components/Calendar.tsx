@@ -16,12 +16,16 @@ interface CalendarProps {
 }
 
 const Calendar: React.FC<CalendarProps> = ({ onSelectRange, onClose }) => {
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 4)); // March 2026
+  const today = new Date();
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [startDate, setStartDate] = useState<number | null>(null);
   const [endDate, setEndDate] = useState<number | null>(null);
 
-  // Today is March 4, 2026
-  const lockUntil = new Date(2026, 2, 8); // Today + 4 days (4, 5, 6, 7 locked)
+  // Lock +3 days (today + 4 days threshold)
+  // Example: Today is 7th, users can pick from 11th onwards (8, 9, 10 are the 3 days buffer)
+  const lockUntil = new Date();
+  lockUntil.setDate(today.getDate() + 4);
+  lockUntil.setHours(0, 0, 0, 0);
 
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const firstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
@@ -71,6 +75,10 @@ const Calendar: React.FC<CalendarProps> = ({ onSelectRange, onClose }) => {
   };
 
   const handleSelect = (day: number) => {
+    // Check if the selected day is disabled
+    const dateObj = new Date(currentDate.getFullYear(), currentDate.getMonth(), day);
+    if (dateObj < lockUntil) return;
+
     if (!startDate || (startDate && endDate)) {
       setStartDate(day);
       setEndDate(null);

@@ -57,6 +57,11 @@ class AuthService {
     return response;
   }
 
+  // 📌 ตั้งค่า Token (ใช้สำหรับ Social Login หรือกรณีได้ Token มาโดยตรง)
+  async setToken(token: string) {
+    await SecureStore.setItemAsync("userToken", token);
+  }
+
   // 📌 OTP
   async sendOTP(data: OTPData) {
     return apiRequest(
@@ -101,6 +106,33 @@ class AuthService {
     );
   }
 
+  // 📌 ตรวจสอบอีเมลและเบอร์โทรศัพท์
+  async checkEmail(email: string) {
+    try {
+      const response = await apiRequest(
+        `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_CHECK_EMAIL}?email=${email}`,
+        { method: "GET", withAuth: false }
+      );
+      return response.exists;
+    } catch (error) {
+      console.error("Check email error:", error);
+      return false;
+    }
+  }
+
+  async checkPhone(phone: string) {
+    try {
+      const response = await apiRequest(
+        `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_CHECK_PHONE}?phone=${phone}`,
+        { method: "GET", withAuth: false }
+      );
+      return response.exists;
+    } catch (error) {
+      console.error("Check phone error:", error);
+      return false;
+    }
+  }
+
   // 📌 ฟังก์ชันจัดการสถานะ Session
   async getToken() {
     return await SecureStore.getItemAsync("userToken");
@@ -118,13 +150,22 @@ class AuthService {
 
   async getProfile() {
     const response = await apiRequest(
-      `${API_ENDPOINTS.BASE_URL}/users/profile`,
+      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_ME}`,
       {
         method: "GET",
         withAuth: true,
       }
     );
 
+    // ตรวจสอบโครงสร้าง response จาก /auth/me (ที่มี { success: true, user: { ... } })
+    if (response && response.success && response.user) {
+      console.log('--- DEBUG: getProfile Success ---');
+      console.log('User Object:', JSON.stringify(response.user, null, 2));
+      await SecureStore.setItemAsync("userData", JSON.stringify(response.user));
+      return response.user;
+    }
+
+    // กรณีโครงสร้างอื่น (สำรอง)
     if (response && !response.error) {
       await SecureStore.setItemAsync("userData", JSON.stringify(response));
     }
@@ -133,9 +174,9 @@ class AuthService {
 
   async updateProfile(data: any) {
     const response = await apiRequest(
-      `${API_ENDPOINTS.BASE_URL}/users/profile`,
+      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_UPDATE_PROFILE}`,
       {
-        method: "PUT",
+        method: "PATCH",
         body: JSON.stringify(data),
         withAuth: true,
       }
@@ -145,6 +186,23 @@ class AuthService {
       const currentData = await this.getUserData();
       const updatedData = { ...currentData, ...response };
       await SecureStore.setItemAsync("userData", JSON.stringify(updatedData));
+    }
+    return response;
+  }
+
+  async updateAddress(data: any) {
+    const response = await apiRequest(
+      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.ADDRESS_UPDATE}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(data),
+        withAuth: true,
+      }
+    );
+
+    if (response && !response.error) {
+      // Refresh profile to get updated address
+      await this.getProfile();
     }
     return response;
   }
@@ -160,13 +218,50 @@ class AuthService {
     });
 
     if (!response.ok) {
-      throw new Error(`Upload failed: ${response.status}`);
+      let errorMsg = `Upload failed: ${response.status}`;
+      try {
+        const data = await response.json();
+        if (data && data.message) errorMsg = data.message;
+      } catch (e) {
+        // If not JSON, use default
+      }
+      throw new Error(errorMsg);
     }
 
     const result = await response.json();
 
     // After success, refresh profile to get new status (e.g., 'pending' or 'verified')
     await this.getProfile();
+
+    return result;
+  }
+
+  async updateProfileImage(formData: FormData) {
+    const token = await this.getToken();
+    const response = await fetch(`${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_UPDATE_PROFILE}`, {
+      method: "PATCH",
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    console.log('--- DEBUG: updateProfileImage response ---');
+    console.log('Result:', JSON.stringify(result, null, 2));
+
+    // บันทึกข้อมูล user ทันทีที่อัปเดตสำเร็จ
+    if (result.success && result.user) {
+      console.log('Updating local SecureStore with new user data');
+      await SecureStore.setItemAsync("userData", JSON.stringify(result.user));
+    } else {
+      console.log('Falling back to getProfile() to refresh data');
+      await this.getProfile(); // Refresh profile to get new image URL
+    }
 
     return result;
   }

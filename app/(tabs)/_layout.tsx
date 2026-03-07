@@ -61,12 +61,15 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen name="products/create" options={{ href: null }} />
+      <Tabs.Screen name="products/edit" options={{ href: null }} />
+      <Tabs.Screen name="products/edit/[id]" options={{ href: null }} />
       <Tabs.Screen name="products/edit/index" options={{ href: null }} />
       <Tabs.Screen name="bookings" options={{ href: null }} />
       <Tabs.Screen name="bookings/index" options={{ href: null }} />
       <Tabs.Screen name="bookings/[id]" options={{ href: null }} />
       <Tabs.Screen name="wallet" options={{ href: null }} />
       <Tabs.Screen name="wallet/index" options={{ href: null }} />
+      <Tabs.Screen name="wallet/history" options={{ href: null }} />
       <Tabs.Screen name="chat" options={{ href: null }} />
       <Tabs.Screen
         name="chat/[chatId]"
@@ -95,6 +98,8 @@ export default function TabLayout() {
       <Tabs.Screen name="profile/bookings" options={{ href: null }} />
       <Tabs.Screen name="profile/kyc" options={{ href: null }} />
       <Tabs.Screen name="profile/shop" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/rentals" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop/damage-report" options={{ href: null }} />
       <Tabs.Screen name="profile/address" options={{ href: null }} />
 
 

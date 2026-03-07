@@ -13,12 +13,15 @@ import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import authService from '../../../services/auth.service';
 import shopService from '../../../services/shop.service';
 import styles from '../../../styles/profile.styles';
+import * as ImagePicker from 'expo-image-picker';
+import productService from '../../../services/product.service';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const [user, setUser] = useState<any>(null);
   const [shop, setShop] = useState<any>(null);
+  const [productCount, setProductCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<'renter' | 'owner'>(params.mode === 'owner' ? 'owner' : 'renter');
 
@@ -70,6 +73,15 @@ export default function ProfileScreen() {
         setShop(actualShop);
         // Automatically switch if we have a shop
         setMode('owner');
+
+        // Load product count
+        try {
+          const prodResponse = await productService.getOwnProducts();
+          const items = prodResponse.products || prodResponse.data || (Array.isArray(prodResponse) ? prodResponse : []);
+          setProductCount(items.length);
+        } catch (e) {
+          console.error('Error fetching product count:', e);
+        }
       } else {
         console.log('NO MATCH: User does not own any store in this list');
         setShop(null);
@@ -130,6 +142,53 @@ export default function ProfileScreen() {
         }
       ]
     );
+  };
+
+  const handleUpdateProfileImage = async () => {
+    // Only allow changing profile image in renter mode (User Profile)
+    if (mode !== 'renter') {
+      Alert.alert('แจ้งเตือน', 'กรุณาสลับเป็นโหมดผู้เช่าเพื่อแก้ไขรูปโปรไฟล์ส่วนตัว');
+      return;
+    }
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setLoading(true);
+        const selectedImage = result.assets[0];
+
+        const formData = new FormData();
+        const fileName = selectedImage.uri.split('/').pop() || 'profile.jpg';
+        const match = /\.(\w+)$/.exec(fileName);
+        const type = match ? `image/${match[1]}` : `image/jpeg`;
+
+        formData.append('profile_picture', {
+          uri: selectedImage.uri,
+          name: fileName,
+          type: type,
+        } as any);
+
+        const response = await authService.updateProfileImage(formData);
+
+        if (response && !response.error) {
+          Alert.alert('สำเร็จ', 'อัปเดตรูปโปรไฟล์เรียบร้อยแล้ว');
+          await loadUserData();
+        } else {
+          throw new Error(response?.message || 'Upload failed');
+        }
+      }
+    } catch (error: any) {
+      console.error('Update profile image error:', error);
+      Alert.alert('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถอัปเดตรูปภาพได้');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const renderStatusButton = () => {
@@ -223,19 +282,22 @@ export default function ProfileScreen() {
       </TouchableOpacity>
 
       {/* Manage Products */}
-      <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(tabs)/products/index')}>
+      <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(tabs)/products')}>
         <View style={styles.menuIconContainer}>
           <MaterialCommunityIcons name="tag-multiple-outline" size={32} color="#000000" />
         </View>
         <View style={styles.menuContent}>
           <Text style={styles.menuTitle}>จัดการสินค้า</Text>
-          <Text style={styles.menuSubTitle}>แก้ไข/ลบ สินค้าที่ลงประกาศไว้</Text>
+          <Text style={styles.menuSubTitle}>{productCount > 0 ? `คุณมีสินค้าทั้งหมด ${productCount} รายการ` : 'แก้ไข/ลบ สินค้าที่ลงประกาศไว้'}</Text>
         </View>
         <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
       </TouchableOpacity>
 
       {/* Bookings (Owner view) */}
-      <TouchableOpacity style={styles.menuItem}>
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={() => router.push('/(tabs)/profile/shop/rentals')}
+      >
         <View style={styles.menuIconContainer}>
           <MaterialCommunityIcons name="clipboard-text-outline" size={32} color="#000000" />
         </View>
@@ -260,64 +322,88 @@ export default function ProfileScreen() {
     </View>
   );
 
+  const getImageUrl = (imagePath: string) => {
+    console.log('--- DEBUG: getImageUrl ---');
+    console.log('input imagePath:', imagePath);
+
+    if (!imagePath) {
+      console.log('result: [placeholder]');
+      return 'https://via.placeholder.com/150';
+    }
+
+    if (imagePath.startsWith('http')) {
+      console.log('result: [absolute]', imagePath);
+      return imagePath;
+    }
+
+    const baseUrl = 'https://finalrental.onrender.com';
+    // Ensure path starts with /
+    const normalizedPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+    const fullUrl = `${baseUrl}${normalizedPath}`;
+    console.log('result: [constructed]', fullUrl);
+    return fullUrl;
+  };
+
   const displayData = mode === 'renter' ? {
-    name: user?.full_name,
-    email: user?.email || user?.Email,
-    image: user?.profile_picture,
+    name: user?.full_name || 'ไม่ระบุชื่อ',
+    email: user?.email || 'ไม่ระบุอีเมล',
+    image: getImageUrl(user?.profile_picture),
     address: user?.address || 'ไม่ระบุที่อยู่'
   } : {
     name: shop?.name || 'กำลังดาวน์โหลด...',
-    email: user?.email || user?.Email,
-    image: shop?.image || 'https://via.placeholder.com/150',
+    email: user?.email || 'ไม่ระบุอีเมล',
+    image: getImageUrl(shop?.image || user?.profile_picture),
     address: shop?.address || user?.address || 'ไม่ระบุที่อยู่'
   };
+
+  console.log('--- DEBUG: displayData ---');
+  console.log('Mode:', mode);
+  console.log('User profile_picture field:', user?.profile_picture);
+  console.log('Final construction image URL:', displayData.image);
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Mode Switcher Toggle (Top Right) */}
-        {shop && (
-          <View style={styles.topSwitchWrapper}>
-            <TouchableOpacity
-              style={styles.topSwitchContainer}
-              onPress={() => setMode(mode === 'renter' ? 'owner' : 'renter')}
-            >
-              <View style={[styles.topSwitchPill, mode === 'owner' && styles.topSwitchPillActive]}>
-                <MaterialCommunityIcons
-                  name={mode === 'renter' ? "account" : "storefront"}
-                  size={16}
-                  color={mode === 'owner' ? "#FFFFFF" : "#3498DB"}
-                />
-                <Text style={[styles.topSwitchLabel, mode === 'owner' && styles.topSwitchLabelActive]}>
-                  {mode === 'renter' ? 'ผู้เช่า' : 'เจ้าของร้าน'}
-                </Text>
-                <Ionicons
-                  name="repeat"
-                  size={14}
-                  color={mode === 'owner' ? "#FFFFFF" : "#3498DB"}
-                  style={{ marginLeft: 4 }}
-                />
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Header Section */}
         <View style={styles.header}>
-          <View style={styles.avatarContainer}>
-            <Image
-              source={{ uri: displayData.image }}
-              style={styles.avatar}
-            />
-          </View>
+          <TouchableOpacity
+            style={styles.avatarWrapper}
+            onPress={handleUpdateProfileImage}
+            activeOpacity={0.8}
+          >
+            <View style={styles.avatarContainer}>
+              <Image
+                source={{ uri: displayData.image }}
+                style={styles.avatar}
+              />
+            </View>
+            <View style={styles.editBadge}>
+              <Feather name="camera" size={16} color="#FFFFFF" />
+            </View>
+          </TouchableOpacity>
 
           <Text style={styles.userName}>{displayData.name}</Text>
           <Text style={styles.userEmail}>{displayData.email}</Text>
 
-          <TouchableOpacity style={styles.addressPill}>
+          <TouchableOpacity
+            style={styles.addressPill}
+            onPress={() => router.push('/(tabs)/profile/address')}
+          >
             <Ionicons name="location-outline" size={16} color="#E74C3C" />
             <Text style={styles.addressText} numberOfLines={1}>
-              {displayData.address}
+              {(() => {
+                const addr = displayData.address;
+                if (!addr || addr === 'ไม่ระบุที่อยู่') return 'ยังไม่ได้เพิ่มที่อยู่';
+                try {
+                  const parsed = typeof addr === 'object' ? addr : JSON.parse(addr);
+                  const prov = parsed.province || '';
+                  const dist = parsed.district || '';
+                  const detail = parsed.house_no || parsed.address_detail || '';
+                  return `${detail} ${dist} ${prov}`.trim() || 'ดูรายละเอียดที่อยู่';
+                } catch (e) {
+                  return addr;
+                }
+              })()}
             </Text>
             <Feather name="edit-3" size={14} color="#7F8C8D" />
           </TouchableOpacity>

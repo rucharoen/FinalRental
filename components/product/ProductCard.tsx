@@ -11,14 +11,39 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const router = useRouter();
 
+  const getImageUrl = (imgData: any) => {
+    if (!imgData) return 'https://via.placeholder.com/150';
+
+    // Check if it's an array or string-array
+    let imagesArr = [];
+    try {
+      imagesArr = typeof imgData === 'string' ? JSON.parse(imgData) : imgData;
+    } catch (e) {
+      imagesArr = [imgData];
+    }
+
+    if (!Array.isArray(imagesArr) || imagesArr.length === 0) return 'https://via.placeholder.com/150';
+
+    let path = imagesArr[0];
+    if (!path) return 'https://via.placeholder.com/150';
+    if (path.startsWith('http')) return path;
+
+    const baseUrl = 'https://finalrental.onrender.com';
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${baseUrl}${normalizedPath}`;
+  };
+
+  const mainImage = getImageUrl(product.images || (product as any).product_images);
+  const productId = product._id || product.id;
+
   return (
     <TouchableOpacity
       style={styles.productCard}
-      onPress={() => router.push(`/(tabs)/products/${product.id}`)}
+      onPress={() => router.push(`/(tabs)/products/${productId}`)}
     >
       <View style={styles.productImage}>
         <Image
-          source={{ uri: product.images && product.images.length > 0 ? product.images[0] : '' }}
+          source={{ uri: mainImage }}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
         />

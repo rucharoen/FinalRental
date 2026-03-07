@@ -21,6 +21,25 @@ export default function BookingsScreen() {
     const [rentals, setRentals] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    const getImageUrl = (imgData: any) => {
+        if (!imgData) return 'https://via.placeholder.com/100';
+        try {
+            const parsed = typeof imgData === 'string' ? JSON.parse(imgData) : imgData;
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                const path = parsed[0];
+                if (!path) return 'https://via.placeholder.com/100';
+                if (path.startsWith('http')) return path;
+
+                const baseUrl = 'https://finalrental.onrender.com';
+                const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+                return `${baseUrl}${normalizedPath}`;
+            }
+        } catch (e) {
+            console.error('Image parse error:', e);
+        }
+        return 'https://via.placeholder.com/100';
+    };
+
     const tabs = [
         { id: 'pending', label: 'รออนุมัติ' },
         { id: 'payment', label: 'ที่ต้องชำระ' },
@@ -33,32 +52,38 @@ export default function BookingsScreen() {
 
     const loadRentals = async () => {
         try {
+            setLoading(true);
             const user = await authService.getUserData();
-            if (user && user.id) {
-                const data = await rentalService.getUserRentals(user.id);
-                // ดึงข้อมูล rentals ที่ได้จาก API
-                // บางครั้ง API อาจหุ้มข้อมูลมาด้วย { rentals: [] }
-                const rentalList = Array.isArray(data) ? data : (data.rentals || []);
-                setRentals(rentalList);
+            if (user && (user.id || user._id)) {
+                const data = await rentalService.getUserRentals();
+                setRentals(Array.isArray(data) ? data : []);
             }
         } catch (error) {
-            console.error('Error loading rentals:', error);
+            // Error handling
         } finally {
             setLoading(false);
         }
     };
 
     const getFilteredData = () => {
-        switch (activeTab) {
-            case 'pending':
-                return rentals.filter(r => r.status === 'requested' || r.status === 'pending');
-            case 'payment':
-                return rentals.filter(r => r.status === 'approved' || r.status === 'unpaid');
-            case 'receive':
-                return rentals.filter(r => r.status === 'paid' || r.status === 'shipped' || r.status === 'in_progress');
-            default:
-                return [];
-        }
+        return rentals.filter(r => {
+            const status = (r.status || '').toLowerCase();
+            switch (activeTab) {
+                case 'pending':
+                    return status === 'pending' || status === 'pending_owner';
+                case 'payment':
+                    return status === 'approved' ||
+                        status === 'waiting_payment' ||
+                        status === 'waiting_verification';
+                case 'receive':
+                    return status === 'paid' ||
+                        status === 'shipped' ||
+                        status === 'received' ||
+                        status === 'delivered';
+                default:
+                    return false;
+            }
+        });
     };
 
     const formatDate = (dateString: string) => {
@@ -72,54 +97,76 @@ export default function BookingsScreen() {
     };
 
     const renderBookingCard = (item: any) => {
-        // ดึงข้อมูลสินค้าที่หุ้มอยู่ใน rental object
-        const product = item.productId || {};
-        const startDate = formatDate(item.startDate);
-        const endDate = formatDate(item.endDate);
+        const productName = item.product_name || item.product?.name || 'ไม่มีชื่อสินค้า';
+        const startDate = formatDate(item.start_date || item.startDate);
+        const endDate = formatDate(item.end_date || item.endDate);
+
+        // จัดการเรื่องค่าเช่าและจำนวนวัน (รองรับทั้ง rent_fee และ rental_fee)
+        const fee = parseFloat(item.rent_fee || item.rental_fee || item.total_price || 0);
+        const days = parseInt(item.days || 1);
+        const pricePerDay = fee / days;
+
+        const shopName = item.shop_name || item.shop?.name || 'ร้านค้า';
+
+        // คำนวณวันคืน (หลังวันสิ้นสุด 1 วัน)
+        const endD = item.end_date || item.endDate;
+        const returnDate = endD ? new Date(endD) : new Date();
+        returnDate.setDate(returnDate.getDate() + 1);
+        const returnDateStr = formatDate(returnDate.toISOString());
 
         return (
-            <View key={item._id || item.id} style={styles.bookingCard}>
-                {/* Shop Name (assuming it's in ownerId or something similar) */}
+            <View key={item.id || Math.random().toString()} style={styles.bookingCard}>
                 <View style={styles.shopHeader}>
                     <MaterialCommunityIcons name="storefront-outline" size={20} color="#000000" />
-                    <Text style={styles.shopName}>{product.shopName || 'ร้านค้าทางการ'}</Text>
+                    <Text style={styles.shopName}>{shopName}</Text>
                 </View>
 
-                {/* Product Section */}
                 <View style={styles.productSection}>
                     <Image
-                        source={{ uri: product.images?.[0] || 'https://via.placeholder.com/100' }}
+                        source={{ uri: getImageUrl(item.images) }}
                         style={styles.productImage}
                     />
                     <View style={styles.productDetails}>
-                        <Text style={styles.productTitle}>{product.name || 'ไม่มีชื่อสินค้า'}</Text>
-                        <View style={styles.infoRow}>
-                            <Text style={styles.infoText}>ระยะเวลาเช่า {startDate} - {endDate}</Text>
-                        </View>
-                        <Text style={styles.priceText}>{item.totalPrice?.toLocaleString()} ฿</Text>
-                        <Text style={styles.warningText}>*กรุณาส่งสินค้าคืนเมื่อครบกำหนด</Text>
+                        <Text style={styles.productTitle} numberOfLines={1}>{productName}</Text>
+                        <Text style={styles.infoText}>ระยะเวลาเช่า {startDate} - {endDate}</Text>
+                        <Text style={[styles.priceText, { color: '#E74C3C', fontSize: 16, marginTop: 4 }]}>
+                            {pricePerDay.toLocaleString()} ฿/วัน
+                        </Text>
+                        <Text style={[styles.warningText, { color: '#E74C3C', fontSize: 11 }]}>
+                            *กรุณาส่งสินค้าคืนภายในวันที่ {returnDateStr}
+                        </Text>
                     </View>
                 </View>
 
-                {/* Action Button Section */}
                 <View style={styles.actionSection}>
-                    {activeTab === 'pending' && (
-                        <TouchableOpacity style={[styles.actionButton, styles.pendingButton]}>
-                            <Text style={styles.buttonText}>รออนุมัติ</Text>
+                    {(item.status === 'pending' || item.status === 'pending_owner') && (
+                        <View style={[styles.actionButton, { backgroundColor: '#AED6F1' }]}>
+                            <Text style={[styles.buttonText, { color: '#3498DB' }]}>รออนุมัติ</Text>
+                        </View>
+                    )}
+
+                    {item.status === 'waiting_verification' && (
+                        <View style={[styles.actionButton, { backgroundColor: '#F9E79F' }]}>
+                            <Text style={[styles.buttonText, { color: '#F39C12' }]}>รอตรวจสอบ</Text>
+                        </View>
+                    )}
+
+                    {(item.status === 'approved' || item.status === 'waiting_payment') && (
+                        <TouchableOpacity
+                            style={styles.actionButton}
+                            onPress={() => router.push({
+                                pathname: '/payment/process',
+                                params: { rentalId: item.id }
+                            })}
+                        >
+                            <Text style={styles.buttonText}>ชำระเงิน</Text>
                         </TouchableOpacity>
                     )}
-                    {activeTab === 'payment' && (
-                        <TouchableOpacity style={styles.actionButton} onPress={() => {/* Navigate to payment */ }}>
-                            <Text style={styles.buttonText}>ชำระ</Text>
+
+                    {(item.status === 'paid' || item.status === 'shipped') && (
+                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#2ECC71' }]}>
+                            <Text style={styles.buttonText}>ยืนยันรับสินค้า</Text>
                         </TouchableOpacity>
-                    )}
-                    {activeTab === 'receive' && (
-                        <>
-                            <Text style={styles.statusText}>{item.status === 'paid' ? 'รอรับสินค้า' : 'อยู่ระหว่างจัดส่ง'}</Text>
-                            <TouchableOpacity style={styles.actionButton}>
-                                <Text style={styles.buttonText}>ยืนยันการรับสินค้า</Text>
-                            </TouchableOpacity>
-                        </>
                     )}
                 </View>
             </View>

@@ -97,17 +97,19 @@ export default function AddressScreen() {
     const populateAddress = (addressStr: string) => {
         if (!addressStr || addressStr === 'ไม่ระบุที่อยู่') return;
         try {
-            const parsed = JSON.parse(addressStr);
-            setShippingName(parsed.shipping_name || '');
-            setPhone(parsed.shipping_phone || '');
+            const parsed = typeof addressStr === 'object' ? addressStr : JSON.parse(addressStr);
+            setShippingName(parsed.name || parsed.shipping_name || '');
+            setPhone(parsed.phone || parsed.shipping_phone || '');
             setProvince(parsed.province || '');
             setDistrict(parsed.district || '');
             setSubDistrict(parsed.sub_district || '');
-            setPostalCode(parsed.postal_code || '');
-            setAddressDetail(parsed.address_detail || '');
+            setPostalCode(parsed.postcode || parsed.postal_code || '');
+            setAddressDetail(parsed.house_no || parsed.address_detail || '');
         } catch (e) {
             // If it's just a plain string, put it in detail
-            setAddressDetail(addressStr);
+            if (typeof addressStr === 'string') {
+                setAddressDetail(addressStr);
+            }
         }
     };
 
@@ -166,25 +168,27 @@ export default function AddressScreen() {
 
         setLoading(true);
         try {
-            const addressObject = {
-                shipping_name: shippingName,
-                shipping_phone: phone,
-                province,
-                district,
+            // เตรียมข้อมูลตามที่ปรากฏในรูปภาพ (API Payload)
+            const addressData = {
+                name: shippingName,
+                phone: phone,
+                province: province,
+                district: district,
                 sub_district: subDistrict,
-                postal_code: postalCode,
-                address_detail: addressDetail,
+                postcode: postalCode,
+                house_no: addressDetail,
             };
 
-            const addressString = JSON.stringify(addressObject);
+            // เรียกใช้ apiRequest โดยตรงหรือผ่าน service
+            const response = await authService.updateAddress(addressData);
 
-            await authService.updateProfile({
-                address: addressString
-            });
-
-            Alert.alert('สำเร็จ', 'บันทึกที่อยู่เรียบร้อยแล้ว', [
-                { text: 'ตกลง', onPress: () => router.back() }
-            ]);
+            if (response && !response.error) {
+                Alert.alert('สำเร็จ', 'บันทึกที่อยู่เรียบร้อยแล้ว', [
+                    { text: 'ตกลง', onPress: () => router.back() }
+                ]);
+            } else {
+                throw new Error(response?.message || 'เกิดข้อผิดพลาดในการบันทึกที่อยู่');
+            }
         } catch (error: any) {
             console.error('Save Address Error:', error);
             Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่อีกครั้ง');

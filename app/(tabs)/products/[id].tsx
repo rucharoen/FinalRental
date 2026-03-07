@@ -36,19 +36,45 @@ export default function ProductDetailScreen() {
   const fetchProduct = async () => {
     try {
       setLoading(true);
-      // ดึงสินค้าทั้งหมดมาหารายการที่ตรงกับ ID
-      const allProducts = await productService.getProducts();
-      const foundProduct = allProducts.find(p => p.id.toString() === id);
+      console.log('[DEBUG] Fetching product with ID:', id);
+
+      let foundProduct = null;
+
+      // 1. ลองหาในสินค้าของตัวเองก่อน (เพราะเจ้าของร้านมักเช็คสินค้าตัวเอง)
+      try {
+        const ownResponse = await productService.getOwnProducts();
+        const ownProducts = ownResponse.products || ownResponse.data || (Array.isArray(ownResponse) ? ownResponse : []);
+        foundProduct = ownProducts.find((p: any) =>
+          (p?.id?.toString() === id?.toString()) ||
+          (p?._id?.toString() === id?.toString())
+        );
+        if (foundProduct) console.log('[DEBUG] Found in own products');
+      } catch (e) {
+        console.log('[DEBUG] Error fetching own products');
+      }
+
+      // 2. ถ้าไม่เจอในของตัวเอง ให้หาในรายการทั่วไป
+      if (!foundProduct) {
+        try {
+          const allProducts = await productService.getProducts();
+          foundProduct = allProducts.find((p: any) =>
+            (p?.id?.toString() === id?.toString()) ||
+            (p?._id?.toString() === id?.toString())
+          );
+          if (foundProduct) console.log('[DEBUG] Found in public products');
+        } catch (e) {
+          console.log('[DEBUG] Error fetching public products');
+        }
+      }
 
       if (foundProduct) {
         setProduct(foundProduct);
       } else {
-        // หากหาไม่พบในรายการ ให้ลองเรียก API รายตัวเป็นทางเลือกสุดท้าย
-        const data = await productService.getProductById(id as string);
-        setProduct(data);
+        console.log('[DEBUG] Product not found in any list for ID:', id);
+        Alert.alert('แจ้งเตือน', 'ไม่พบรายละเอียดสินค้า');
       }
     } catch (error) {
-      console.error('Error fetching product details:', error);
+      console.error('[DEBUG] Product Detail Fetch Error:', error);
     } finally {
       setLoading(false);
     }
@@ -130,7 +156,10 @@ export default function ProductDetailScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/')}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={30} color="#2C3E50" />
         </TouchableOpacity>
       </View>
@@ -139,7 +168,29 @@ export default function ProductDetailScreen() {
         {/* Product Image */}
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: product.images && product.images.length > 0 ? product.images[0] : '' }}
+            source={{
+              uri: (() => {
+                const imgData = product.images || (product as any).product_images;
+                if (!imgData) return 'https://via.placeholder.com/150';
+
+                let imagesArr = [];
+                try {
+                  imagesArr = typeof imgData === 'string' ? JSON.parse(imgData) : imgData;
+                } catch (e) {
+                  imagesArr = [imgData];
+                }
+
+                if (!Array.isArray(imagesArr) || imagesArr.length === 0) return 'https://via.placeholder.com/150';
+
+                const path = imagesArr[0];
+                if (!path) return 'https://via.placeholder.com/150';
+                if (path.startsWith('http')) return path;
+
+                const baseUrl = 'https://finalrental.onrender.com';
+                const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+                return `${baseUrl}${normalizedPath}`;
+              })()
+            }}
             style={styles.productImage}
             resizeMode="contain"
           />
@@ -148,10 +199,10 @@ export default function ProductDetailScreen() {
         {/* Product Info */}
         <View style={styles.infoContainer}>
           <View style={styles.priceRow}>
-            <Text style={styles.price}>{product.price_per_day.toLocaleString()}</Text>
+            <Text style={styles.price}>{Number(product.price_per_day || 0).toLocaleString()}</Text>
             <Text style={styles.priceUnit}> ฿/วัน</Text>
           </View>
-          <Text style={styles.deposit}>เงินมัดจำ {product.deposit}฿</Text>
+          <Text style={styles.deposit}>เงินมัดจำ {Number(product.deposit || 0).toLocaleString()}฿</Text>
           <Text style={styles.name}>{product.name}</Text>
         </View>
 

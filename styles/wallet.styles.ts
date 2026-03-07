@@ -1,0 +1,218 @@
+import { StyleSheet, Platform } from 'react-native';
+
+export const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+    headerLogoContainer: {
+        alignItems: 'center',
+        paddingTop: 10,
+        paddingBottom: 20,
+    },
+    logo: {
+        width: 100,
+        height: 100,
+        resizeMode: 'contain',
+    },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: '#000',
+        textAlign: 'center',
+        marginBottom: 20,
+    },
+    balanceCard: {
+        backgroundColor: '#2C3E50',
+        borderRadius: 15,
+        padding: 25,
+        marginHorizontal: 16,
+        alignItems: 'center',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5,
+        marginBottom: 30,
+    },
+    balanceLabel: {
+        color: '#FFFFFF',
+        fontSize: 14,
+        marginBottom: 10,
+    },
+    balanceAmount: {
+        color: '#FFFFFF',
+        fontSize: 28,
+        fontWeight: 'bold',
+    },
+    balanceFooter: {
+        color: '#BDC3C7',
+        fontSize: 12,
+        marginTop: 10,
+    },
+    actionButton: {
+        backgroundColor: '#CF3D3D',
+        borderRadius: 8,
+        height: 55,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginHorizontal: 16,
+        marginBottom: 30,
+    },
+    actionButtonText: {
+        color: '#FFFFFF',
+        fontSize: 20,
+        fontWeight: 'bold',
+    },
+    historySection: {
+        paddingHorizontal: 16,
+        borderTopWidth: 1,
+        borderTopColor: '#F0F0F0',
+        paddingTop: 20,
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: '#7F8C8D',
+        marginBottom: 15,
+    },
+    historyItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        justifyContent: 'space-between',
+    },
+    historyIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: '#F8F9FA',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    historyContent: {
+        flex: 1,
+    },
+    historyTitle: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#2C3E50',
+    },
+    historySubTitle: {
+        fontSize: 12,
+        color: '#95A5A6',
+    },
+    // Withdraw Form
+    formContainer: {
+        marginHorizontal: 16,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 15,
+        padding: 20,
+        borderWidth: 1,
+        borderColor: '#E0E0E0',
+        marginBottom: 20,
+    },
+    inputGroup: {
+        marginBottom: 15,
+    },
+    label: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#000',
+        marginBottom: 8,
+    },
+    input: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#BDC3C7',
+        borderRadius: 8,
+        paddingHorizontal: 15,
+        paddingVertical: 12,
+        fontSize: 14,
+        color: '#2C3E50',
+    },
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 15,
+        width: '80%',
+        padding: 25,
+        alignItems: 'center',
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#CF3D3D',
+        marginBottom: 10,
+    },
+    modalMessage: {
+        fontSize: 14,
+        color: '#7F8C8D',
+        textAlign: 'center',
+        marginBottom: 25,
+    },
+    modalButtonsRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        width: '100%',
+    },
+    secondaryButton: {
+        backgroundColor: '#E0E0E0',
+        borderRadius: 5,
+        height: 40,
+        paddingHorizontal: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    secondaryButtonText: {
+        color: '#2C3E50',
+        fontWeight: '600',
+    },
+    confirmButton: {
+        backgroundColor: '#CF3D3D',
+        borderRadius: 5,
+        height: 40,
+        paddingHorizontal: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    confirmButtonText: {
+        color: '#FFFFFF',
+        fontWeight: '600',
+    },
+    // Success Modal
+    successIcon: {
+        width: 60,
+        height: 60,
+        marginBottom: 15,
+    },
+    successTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#000',
+        marginBottom: 20,
+    },
+    doneButton: {
+        backgroundColor: '#E0E0E0',
+        borderRadius: 5,
+        height: 40,
+        paddingHorizontal: 35,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    doneButtonText: {
+        color: '#000',
+        fontWeight: '600',
+    }
+});

@@ -30,12 +30,13 @@ export default function ChatScreen() {
   const [shopAvatar, setShopAvatar] = useState('https://picsum.photos/seed/shop/100/100');
   const scrollViewRef = useRef<ScrollView>(null);
 
+  const [actualChatId, setActualChatId] = useState<string>(chatId as string);
+
   useEffect(() => {
     loadInitialData();
-    // ดึงข้อมูลใหม่ทุก 3 วินาทีเพื่อให้ดู Real-time
-    const interval = setInterval(fetchMessages, 3000);
+    const interval = setInterval(() => fetchMessages(), 3000);
     return () => clearInterval(interval);
-  }, [chatId]);
+  }, [chatId, actualChatId]);
 
   const [bookingSummary, setBookingSummary] = useState<any>(null);
 
@@ -43,36 +44,77 @@ export default function ChatScreen() {
     try {
       setLoading(true);
       const userData = await authService.getUserData();
-      if (userData) {
-        setCurrentUser(userData);
+      if (!userData) return;
+
+      setCurrentUser(userData);
+      const myId = (userData.id || userData._id).toString();
+
+      // จัดการกับ ChatId: ถ้าส่งมาแค่เลข ID เดียว (เช่นจากหน้า Product) ให้สร้างเป็น format chat_ID1_ID2
+      let targetChatId = chatId as string;
+
+      // ถ้าไม่มี chatId หรือเป็น 'default' ให้ข้ามไปก่อน
+      if (!targetChatId || targetChatId === 'default') {
+        setLoading(false);
+        setShopName('รายการสนทนา');
+        return;
       }
 
-      // Fetch shop details if it's a shop
-      if (chatId) {
+      console.log('--- [DEBUG] Chat Screen Init ---', {
+        chatId,
+        myId,
+        targetChatId
+      });
+
+      if (targetChatId && !targetChatId.startsWith('chat_')) {
+        const id1 = parseInt(myId);
+        const id2 = parseInt(targetChatId);
+
+        if (isNaN(id2)) {
+          console.log('[Chat] Skipping numeric conversion for non-numeric ID:', targetChatId);
+        } else {
+          const sortedIds = [id1, id2].sort((a, b) => a - b);
+          targetChatId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
+          setActualChatId(targetChatId);
+        }
+      }
+
+      // Fetch shop details or User info
+      const otherUserId = targetChatId && targetChatId.startsWith('chat_')
+        ? targetChatId.replace('chat_', '').split('_').find(id => id !== myId)
+        : targetChatId;
+
+      console.log('--- [DEBUG] Found Partner ID ---', otherUserId);
+
+      if (otherUserId && otherUserId !== 'NaN' && otherUserId !== 'default') {
         try {
-          const shop = await shopService.getShopInfo(chatId as string);
-          if (shop) {
-            setShopName(shop.shopName || shop.name || `ร้านค้า ${chatId.toString().substring(0, 6)}`);
-            setShopAvatar(shop.image || 'https://picsum.photos/200/200');
+          // พยายามหาข้อมูลผ่าน shopService ก่อน
+          const shop = await shopService.getShopInfo(otherUserId);
+          if (shop && (shop.name || shop.shopName)) {
+            setShopName(shop.name || shop.shopName);
+            setShopAvatar(chatService.formatImageUrl(shop.image || shop.profile_picture) || 'https://picsum.photos/seed/' + otherUserId + '/200/200');
+          } else {
+            setShopName(`ผู้ใช้ ${otherUserId}`);
+            setShopAvatar('https://picsum.photos/seed/' + otherUserId + '/200/200');
           }
         } catch (e) {
-          // If not a shop, maybe it's a user
-          setShopName(`ร้านค้า ${chatId?.toString().substring(0, 6)}`);
+          setShopName(`ผู้ใช้ ${otherUserId}`);
+          setShopAvatar('https://picsum.photos/seed/' + otherUserId + '/200/200');
         }
 
-        // Fetch Booking Summary if available
+        // Fetch Booking Summary
         try {
-          const summary = await chatService.getChatBookingSummary(chatId as string);
-          console.log('Booking Summary:', summary);
+          const summary = await chatService.getChatBookingSummary(targetChatId);
           if (summary && (summary.productName || summary.data)) {
             setBookingSummary(summary.data || summary);
           }
         } catch (e) {
-          console.log('No booking summary available for this chat');
+          console.log('No booking summary available');
         }
+      } else {
+        setShopName('รายการสนทนา');
       }
 
-      await fetchMessages(userData);
+      await fetchMessages(userData, targetChatId);
     } catch (error) {
       console.error('Chat Init Error:', error);
     } finally {
@@ -80,70 +122,57 @@ export default function ChatScreen() {
     }
   };
 
-  const fetchMessages = async (userParam?: any) => {
-    if (!chatId) return;
+  const fetchMessages = async (userParam?: any, idParam?: string) => {
+    const activeId = idParam || actualChatId;
+    if (!activeId) return;
+
     const activeUser = userParam || currentUser;
     if (!activeUser) return;
 
     try {
-      const response = await chatService.getChatHistory(chatId as string);
-      console.log('Chat History Response for', chatId, ':', JSON.stringify(response).substring(0, 100));
-
+      const response = await chatService.getChatHistory(activeId);
       let newMessages: ChatMessage[] = [];
 
-      // Extensive fallback for various API response structures
       if (Array.isArray(response)) {
         newMessages = response;
       } else if (response && Array.isArray(response.messages)) {
         newMessages = response.messages;
-      } else if (response && Array.isArray(response.data)) {
+      } else if (response && response.data && Array.isArray(response.data)) {
         newMessages = response.data;
-      } else if (response && response.chat && Array.isArray(response.chat.messages)) {
-        newMessages = response.chat.messages;
-      } else if (response && response.history && Array.isArray(response.history)) {
-        newMessages = response.history;
       }
 
-      // ตรวจสอบข้อมูลใหม่
-      if (newMessages.length > 0) {
-        if (newMessages.length !== messages.length) {
-          setMessages(newMessages);
-        }
-      } else if (messages.length === 0) {
-        // เฉพาะกรณีที่เดิมว่างอยู่แล้ว
-        setMessages([]);
+      if (newMessages.length !== messages.length) {
+        setMessages(newMessages);
       }
     } catch (error) {
-      console.log('Fetch error for', chatId, ':', error);
+      console.log('Fetch error:', error);
     }
   };
 
   const handleSend = async () => {
-    if (!message.trim() || !currentUser) return;
+    if (!message.trim() || !currentUser || !actualChatId) return;
 
     const currentMessage = message.trim();
-    setMessage(''); // ล้างช่องพิมพ์ทันทีแบบตัวแปรส่ง (Real App feel)
+    setMessage('');
 
-    const newMessage: ChatMessage = {
-      chatId: chatId as string,
-      senderId: (currentUser.id || currentUser._id).toString(),
+    const newMessage: any = {
+      chat_id: actualChatId,
+      sender_id: (currentUser.id || currentUser._id).toString(),
       message: currentMessage,
     };
 
     try {
-      // Optimistic Update: แสดงผลทันที
-      const tempId = Date.now().toString();
-      const optimisticMsg: ChatMessage = {
+      const optimisticMsg: any = {
         ...newMessage,
+        chatId: actualChatId, // for local UI which might use camelCase
+        senderId: newMessage.sender_id,
         timestamp: new Date().toISOString(),
-        _id: tempId
+        _id: Date.now().toString()
       };
 
       setMessages(prev => [...prev, optimisticMsg]);
-
-      // ส่งข้อมูลเข้า Server จริง
-      await chatService.sendMessage(newMessage);
-      fetchMessages(); // รีโหลดเพื่อเอาจังหวะจริงจาก Server
+      await chatService.sendMessage(optimisticMsg);
+      fetchMessages();
     } catch (error) {
       console.error('Send Error:', error);
       alert('ไม่สามารถส่งข้อความได้');
@@ -208,7 +237,10 @@ export default function ChatScreen() {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity
+          onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/chat')}
+          style={styles.backButton}
+        >
           <Ionicons name="chevron-back" size={28} color="#000" />
         </TouchableOpacity>
 
@@ -249,7 +281,7 @@ export default function ChatScreen() {
 
               {msgs.map((item, index) => {
                 const currentUserId = (currentUser?.id || currentUser?._id)?.toString();
-                const senderId = item.senderId?.toString();
+                const senderId = (item.sender_id || item.senderId)?.toString();
                 const isMe = currentUserId === senderId;
 
                 return (

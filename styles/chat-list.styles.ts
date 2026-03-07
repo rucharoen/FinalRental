@@ -61,6 +61,50 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#7F8C8D',
     },
+    avatarContainer: {
+        position: 'relative',
+    },
+    unreadBadge: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: 14,
+        height: 14,
+        borderRadius: 7,
+        backgroundColor: '#E74C3C',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+    },
+    unreadText: {
+        fontWeight: '900',
+        color: '#000000',
+    },
+    unreadTime: {
+        color: '#3498DB',
+        fontWeight: 'bold',
+    },
+    lastMessageRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    unreadMessage: {
+        color: '#2C3E50',
+        fontWeight: '700',
+    },
+    countBadge: {
+        backgroundColor: '#E74C3C',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        minWidth: 20,
+        alignItems: 'center',
+    },
+    countText: {
+        color: '#FFFFFF',
+        fontSize: 10,
+        fontWeight: 'bold',
+    },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',

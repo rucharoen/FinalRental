@@ -126,6 +126,13 @@ export default function RegisterScreen() {
       return false;
     }
 
+    // ตรวจสอบอักขระพิเศษที่ไม่อนุญาต (อนุญาตแค่ a-z, A-Z, 0-9, @, ., _, -)
+    const allowedChars = /^[a-zA-Z0-9@._-]+$/;
+    if (!allowedChars.test(email) || email.includes(" ")) {
+      setEmailError("❗️ระบบไม่อนุญาตให้ใช้ตัวอักษรพิเศษ");
+      return false;
+    }
+
     // รูปแบบอีเมลไม่ถูกต้อง (ไม่มี @)
     if (!email.includes("@")) {
       setEmailError("❗️รูปแบบอีเมลไม่ถูกต้อง");
@@ -147,10 +154,8 @@ export default function RegisterScreen() {
     }
 
     // รูปแบบอีเมลไม่ถูกต้อง (โครงสร้างผิด)
-    // - ห้ามมีช่องว่าง
-    // - โครงสร้างพื้นฐาน
     const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
-    if (!emailRegex.test(email) || email.includes(" ")) {
+    if (!emailRegex.test(email)) {
       setEmailError("❗️รูปแบบอีเมลไม่ถูกต้อง");
       return false;
     }
@@ -175,6 +180,19 @@ export default function RegisterScreen() {
     // ความยาวไม่ถึงขั้นต่ำ (≥ 8 ตัวอักษร)
     if (pass.length < 8) {
       setPasswordError("❗️รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร");
+      return false;
+    }
+
+    // เช็คภาษาไทย
+    const hasThai = /[\u0e00-\u0e7f]/.test(pass);
+    if (hasThai) {
+      setPasswordError("❗️ห้ามใช้ภาษาไทย");
+      return false;
+    }
+
+    // เช็คการเว้นวรรค
+    if (pass.includes(" ")) {
+      setPasswordError("❗️ห้ามเว้นรหัสผ่าน");
       return false;
     }
 
@@ -242,47 +260,47 @@ export default function RegisterScreen() {
   const handleRegister = async () => {
     // ตรวจสอบความถูกต้องและแจ้งเตือนตามลำดับ
     if (!fullName) {
-      Alert.alert("แจ้งเตือน", "กรุณาป้อนชื่อของคุณ");
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนชื่อของคุณ", [{ text: "ตกลง" }]);
       return;
     }
     if (fullNameError) {
-      Alert.alert("แจ้งเตือน", fullNameError.replace("❗️", ""));
+      Alert.alert("แจ้งเตือน", fullNameError.replace("❗️", ""), [{ text: "ตกลง" }]);
       return;
     }
 
     if (!phoneNumber) {
-      Alert.alert("แจ้งเตือน", "กรุณาป้อนหมายเลขโทรศัพท์");
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนหมายเลขโทรศัพท์", [{ text: "ตกลง" }]);
       return;
     }
     if (phoneError) {
-      Alert.alert("แจ้งเตือน", phoneError.replace("❗️", ""));
+      Alert.alert("แจ้งเตือน", phoneError.replace("❗️", ""), [{ text: "ตกลง" }]);
       return;
     }
 
     if (!email) {
-      Alert.alert("แจ้งเตือน", "กรุณาป้อนอีเมล");
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนอีเมล", [{ text: "ตกลง" }]);
       return;
     }
     if (emailError) {
-      Alert.alert("แจ้งเตือน", emailError.replace("❗️", ""));
+      Alert.alert("แจ้งเตือน", emailError.replace("❗️", ""), [{ text: "ตกลง" }]);
       return;
     }
 
     if (!password) {
-      Alert.alert("แจ้งเตือน", "กรุณาป้อนรหัสผ่าน");
+      Alert.alert("แจ้งเตือน", "กรุณาป้อนรหัสผ่าน", [{ text: "ตกลง" }]);
       return;
     }
     if (passwordError) {
-      Alert.alert("แจ้งเตือน", passwordError.replace("❗️", ""));
+      Alert.alert("แจ้งเตือน", passwordError.replace("❗️", ""), [{ text: "ตกลง" }]);
       return;
     }
 
     if (!confirmPassword) {
-      Alert.alert("แจ้งเตือน", "กรุณายืนยันรหัสผ่าน");
+      Alert.alert("แจ้งเตือน", "กรุณายืนยันรหัสผ่าน", [{ text: "ตกลง" }]);
       return;
     }
     if (confirmPasswordError) {
-      Alert.alert("แจ้งเตือน", confirmPasswordError.replace("❗️", ""));
+      Alert.alert("แจ้งเตือน", confirmPasswordError.replace("❗️", ""), [{ text: "ตกลง" }]);
       return;
     }
 
@@ -306,21 +324,26 @@ export default function RegisterScreen() {
 
       let errorMessage = error?.message || "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้";
 
-      // ดักจับกรณีอีเมลซ้ำ
-      if (
-        errorMessage.toLowerCase().includes("email") &&
-        (errorMessage.toLowerCase().includes("taken") ||
-          errorMessage.toLowerCase().includes("exists") ||
-          errorMessage.toLowerCase().includes("already"))
-      ) {
-        setEmailError(
-          "❗️อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่น",
-        );
-        errorMessage =
-          "อีเมลนี้มีบัญชีอยู่แล้ว กรุณาเข้าสู่ระบบหรือใช้อีเมลอื่น";
+      // ดักจับกรณีข้อมูลซ้ำ (รองรับทั้งภาษาอังกฤษจาก Server และภาษาไทย)
+      const isEmailDuplicate =
+        errorMessage.toLowerCase().includes("email") ||
+        errorMessage.includes("อีเมล์") ||
+        errorMessage.includes("อีเมล");
+
+      const isPhoneDuplicate =
+        errorMessage.toLowerCase().includes("phone") ||
+        errorMessage.includes("เบอร์โทรศัพท์") ||
+        errorMessage.includes("โทรศัพท์");
+
+      if (isEmailDuplicate) {
+        setEmailError("❗️อีเมลนี้มีบัญชีอยู่แล้ว");
       }
 
-      Alert.alert("สมัครสมาชิกไม่สำเร็จ", errorMessage);
+      if (isPhoneDuplicate) {
+        setPhoneError("❗️เบอร์โทรศัพท์นี้ถูกใช้งานแล้ว");
+      }
+
+      Alert.alert("สมัครสมาชิกไม่สำเร็จ", errorMessage, [{ text: "ตกลง" }]);
     } finally {
       setLoading(false);
     }
@@ -416,6 +439,7 @@ export default function RegisterScreen() {
                       validateConfirmPassword(confirmPassword, text);
                   }}
                   secureTextEntry={!showPassword}
+                  contextMenuHidden={true}
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
@@ -451,6 +475,7 @@ export default function RegisterScreen() {
                     validateConfirmPassword(text, password);
                   }}
                   secureTextEntry={!showConfirmPassword}
+                  contextMenuHidden={true}
                 />
                 <TouchableOpacity
                   style={styles.eyeIcon}
@@ -608,7 +633,7 @@ const styles = StyleSheet.create({
     borderColor: "#e74c3c",
   },
   suggestionText: {
-    color: "#3494ce",
+    color: "#e74c3c",
     fontSize: 14,
     marginTop: -10,
     marginBottom: 5,

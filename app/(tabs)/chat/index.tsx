@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  FlatList, 
-  TouchableOpacity, 
-  Image, 
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Image,
   ActivityIndicator,
   SafeAreaView
 } from 'react-native';
@@ -22,13 +22,15 @@ export default function ChatListScreen() {
 
   useEffect(() => {
     loadChatList();
+    const interval = setInterval(loadChatList, 5000); // เช็คข้อความใหม่ทุก 5 วินาที
+    return () => clearInterval(interval);
   }, []);
 
   const loadChatList = async () => {
     try {
       const userData = await authService.getUserData();
       if (userData) {
-        const id = userData.id || userData._id;
+        const id = (userData.id || userData._id).toString();
         setUserId(id);
         const data = await chatService.getChatListByUser(id);
         if (Array.isArray(data)) {
@@ -46,6 +48,7 @@ export default function ChatListScreen() {
     if (!time) return '';
     try {
       const date = new Date(time);
+      if (isNaN(date.getTime())) return '';
       return `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
     } catch (e) {
       return '';
@@ -53,27 +56,52 @@ export default function ChatListScreen() {
   };
 
   const renderChatItem = ({ item }: { item: Chat }) => {
-    // ระบุตัวตนของอีกฝ่ายในแชท (ถ้า userId ไม่ใช่เรา แสดงว่าเป็นอีกฝ่าย)
-    const otherId = item.userId === userId ? item.otherUserId : item.userId;
-    
+    // 🔥 Debug เพื่อดูข้อมูลในแต่ละแถว
+    console.log('--- [DEBUG] Rendering Chat Item ---', {
+      id: item.chatId,
+      name: item.otherUserName,
+      avatar: item.otherUserAvatar
+    });
+
+    // ระบุตัวตนของอีกฝ่ายในแชท
+    const otherId = item.userId.toString() === userId ? item.otherUserId : item.userId;
+    const isUnread = (item.unreadCount ?? 0) > 0;
+    const navigationId = item.chatId || otherId;
+
     return (
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.chatItem}
-        onPress={() => router.push(`/(tabs)/chat/${otherId}`)}
+        onPress={() => router.push(`/(tabs)/chat/${navigationId}`)}
       >
-        <Image 
-          source={{ uri: 'https://picsum.photos/seed/' + otherId + '/100/100' }} 
-          style={styles.avatar} 
-        />
+        <View style={styles.avatarContainer}>
+          <Image
+            source={{ uri: item.otherUserAvatar || 'https://picsum.photos/seed/' + otherId + '/100/100' }}
+            style={styles.avatar}
+          />
+          {isUnread && <View style={styles.unreadBadge} />}
+        </View>
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
-            <Text style={styles.shopName}>ห้องแชท {otherId ? otherId.substring(0, 8) : 'ผู้ใช้'}</Text>
-            <Text style={styles.timeText}>{formatTime(item.lastMessageTime)}</Text>
+            <Text style={[styles.shopName, isUnread && styles.unreadText]}>
+              {item.otherUserName || `ผู้ใช้ ${otherId.toString().substring(0, 8)}`}
+            </Text>
+            <Text style={[styles.timeText, isUnread && styles.unreadTime]}>{formatTime(item.lastMessageTime)}</Text>
           </View>
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessage || 'ส่งข้อความเลย!'}
-          </Text>
+          <View style={styles.lastMessageRow}>
+            <Text
+              style={[styles.lastMessage, isUnread && styles.unreadMessage]}
+              numberOfLines={1}
+            >
+              {item.lastMessage || 'เริ่มต้นการสนทนาได้เลย'}
+            </Text>
+            {isUnread && (
+              <View style={styles.countBadge}>
+                <Text style={styles.countText}>{item.unreadCount}</Text>
+              </View>
+            )}
+          </View>
         </View>
+        <Ionicons name="chevron-forward" size={18} color="#BDC3C7" />
       </TouchableOpacity>
     );
   };
