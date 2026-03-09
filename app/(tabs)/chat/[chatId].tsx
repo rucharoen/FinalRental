@@ -1,23 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View,
+  ActivityIndicator,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  ScrollView,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
-  ScrollView,
-  SafeAreaView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Keyboard
+  View
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons, Feather } from '@expo/vector-icons';
-import styles from '../../../styles/chat.styles';
-import chatService, { ChatMessage } from '../../../services/chat.service';
 import authService from '../../../services/auth.service';
+import chatService, { ChatMessage } from '../../../services/chat.service';
 import shopService from '../../../services/shop.service';
+import styles from '../../../styles/chat.styles';
 
 export default function ChatScreen() {
   const { chatId } = useLocalSearchParams(); // นี่คือ ID ของคู่สนทนา (Owner ID หรือ Room ID)
@@ -53,24 +52,19 @@ export default function ChatScreen() {
       let targetChatId = chatId as string;
 
       // ถ้าไม่มี chatId หรือเป็น 'default' ให้ข้ามไปก่อน
-      if (!targetChatId || targetChatId === 'default') {
+      if (!targetChatId || targetChatId === 'default' || targetChatId === 'NaN') {
         setLoading(false);
         setShopName('รายการสนทนา');
+        console.warn('[DEBUG] Invalid Chat ID detected:', targetChatId);
         return;
       }
-
-      console.log('--- [DEBUG] Chat Screen Init ---', {
-        chatId,
-        myId,
-        targetChatId
-      });
 
       if (targetChatId && !targetChatId.startsWith('chat_')) {
         const id1 = parseInt(myId);
         const id2 = parseInt(targetChatId);
 
         if (isNaN(id2)) {
-          console.log('[Chat] Skipping numeric conversion for non-numeric ID:', targetChatId);
+          // targetChatId remains as is
         } else {
           const sortedIds = [id1, id2].sort((a, b) => a - b);
           targetChatId = `chat_${sortedIds[0]}_${sortedIds[1]}`;
@@ -83,15 +77,55 @@ export default function ChatScreen() {
         ? targetChatId.replace('chat_', '').split('_').find(id => id !== myId)
         : targetChatId;
 
-      console.log('--- [DEBUG] Found Partner ID ---', otherUserId);
-
       if (otherUserId && otherUserId !== 'NaN' && otherUserId !== 'default') {
         try {
-          // พยายามหาข้อมูลผ่าน shopService ก่อน
-          const shop = await shopService.getShopInfo(otherUserId);
-          if (shop && (shop.name || shop.shopName)) {
-            setShopName(shop.name || shop.shopName);
-            setShopAvatar(chatService.formatImageUrl(shop.image || shop.profile_picture) || 'https://picsum.photos/seed/' + otherUserId + '/200/200');
+          let nameFound: string = '';
+          let avatarFound: string = '';
+
+          // 1. พยายามหาจาก Chat List (มีข้อมูล Shop สวยๆ จาก SQL Join)
+          try {
+            const chatList = await chatService.getChatListByUser(myId);
+            const currentChat = chatList.find((c: any) => c.chatId === targetChatId || c.room_id === targetChatId);
+            if (currentChat && currentChat.otherUserName && currentChat.otherUserName !== 'ผู้ใช้') {
+              nameFound = currentChat.otherUserName;
+              avatarFound = currentChat.otherUserAvatar ?? '';
+            }
+          } catch (e) { /* ignore chat list error */ }
+
+          // 2. ถ้ายังไม่ได้ชื่อร้าน หรืออยากอัปเดตข้อมูลให้สดใหม่ ให้ลองหาผ่าน shopService
+          try {
+            const response = await shopService.getShopInfo(otherUserId);
+            let shop = response?.data || response;
+
+            // ตรวจสอบชื่อในหลายๆ รูปแบบ (Backend อาจส่งมาต่างกัน)
+            const sName = shop?.name || shop?.shop_name || shop?.shopName || shop?.partner_shop_name;
+            const sImg = shop?.image || shop?.shop_image || shop?.profile_picture || shop?.avatar || shop?.partner_shop_image;
+
+            if (sName) nameFound = sName;
+            if (sImg) avatarFound = chatService.formatImageUrl(sImg) ?? '';
+
+            // 3. Fallback: ถ้ายังไม่เจอชื่อ (เพราะ ID ที่ได้มาเป็น Owner ID ไม่ใช่ Shop ID) ให้หาจากร้านค้าทั้งหมด
+            if (!nameFound) {
+              const allShopsRes = await shopService.getMyShop();
+              const allShops = allShopsRes?.shops || allShopsRes?.data || (Array.isArray(allShopsRes) ? allShopsRes : []);
+              if (Array.isArray(allShops)) {
+                const foundShop = allShops.find((s: any) =>
+                  s.owner_id?.toString() === otherUserId ||
+                  s.id?.toString() === otherUserId ||
+                  s.ownerId?.toString() === otherUserId
+                );
+                if (foundShop) {
+                  nameFound = foundShop.name || foundShop.shop_name || foundShop.shopName;
+                  avatarFound = chatService.formatImageUrl(foundShop.image || foundShop.shop_image) ?? '';
+                }
+              }
+            }
+          } catch (e) { /* ignore shop fetch error */ }
+
+          // แสดงผลข้อมูลที่หาได้
+          if (nameFound) {
+            setShopName(nameFound);
+            if (avatarFound) setShopAvatar(avatarFound);
           } else {
             setShopName(`ผู้ใช้ ${otherUserId}`);
             setShopAvatar('https://picsum.photos/seed/' + otherUserId + '/200/200');
@@ -108,15 +142,16 @@ export default function ChatScreen() {
             setBookingSummary(summary.data || summary);
           }
         } catch (e) {
-          console.log('No booking summary available');
+          // No booking summary available
         }
       } else {
         setShopName('รายการสนทนา');
       }
 
+      console.log('[DEBUG] Chat Init:', { myId, targetChatId, otherUserId });
       await fetchMessages(userData, targetChatId);
     } catch (error) {
-      console.error('Chat Init Error:', error);
+      // Chat Init Error
     } finally {
       setLoading(false);
     }
@@ -124,7 +159,7 @@ export default function ChatScreen() {
 
   const fetchMessages = async (userParam?: any, idParam?: string) => {
     const activeId = idParam || actualChatId;
-    if (!activeId) return;
+    if (!activeId || activeId === 'default' || activeId === 'NaN') return;
 
     const activeUser = userParam || currentUser;
     if (!activeUser) return;
@@ -141,11 +176,13 @@ export default function ChatScreen() {
         newMessages = response.data;
       }
 
+      console.log(`[DEBUG] Fetched ${newMessages.length} messages for room: ${activeId}`);
+
       if (newMessages.length !== messages.length) {
         setMessages(newMessages);
       }
     } catch (error) {
-      console.log('Fetch error:', error);
+      // Error fetching messages
     }
   };
 
@@ -174,7 +211,6 @@ export default function ChatScreen() {
       await chatService.sendMessage(optimisticMsg);
       fetchMessages();
     } catch (error) {
-      console.error('Send Error:', error);
       alert('ไม่สามารถส่งข้อความได้');
     }
   };
@@ -184,13 +220,13 @@ export default function ChatScreen() {
 
     // Sort messages to ensure they are in order before grouping
     const sorted = [...history].sort((a, b) => {
-      const dateA = new Date(a.timestamp || 0).getTime();
-      const dateB = new Date(b.timestamp || 0).getTime();
+      const dateA = new Date(a.created_at || a.timestamp || 0).getTime();
+      const dateB = new Date(b.created_at || b.timestamp || 0).getTime();
       return dateA - dateB;
     });
 
     sorted.forEach(msg => {
-      const timestamp = msg.timestamp || new Date().toISOString();
+      const timestamp = msg.created_at || msg.timestamp || new Date().toISOString();
       const date = new Date(timestamp);
 
       // Safe check for Invalid Date
@@ -212,7 +248,8 @@ export default function ChatScreen() {
     return groups;
   };
 
-  const formatTime = (timestamp?: string) => {
+  const formatTime = (msg: ChatMessage) => {
+    const timestamp = msg.created_at || msg.timestamp;
     if (!timestamp) return '...';
     try {
       const date = new Date(timestamp);
@@ -261,10 +298,21 @@ export default function ChatScreen() {
         {/* Booking Summary Card */}
         {bookingSummary && (
           <View style={styles.summaryCard}>
-            <Image source={{ uri: bookingSummary.image }} style={styles.summaryImage} />
+            <Image
+              source={{
+                uri: (bookingSummary.product_images && Array.isArray(bookingSummary.product_images) && bookingSummary.product_images.length > 0)
+                  ? chatService.formatImageUrl(bookingSummary.product_images[0])
+                  : (bookingSummary.image || 'https://via.placeholder.com/150')
+              }}
+              style={styles.summaryImage}
+            />
             <View style={styles.summaryInfo}>
-              <Text style={styles.summaryName} numberOfLines={1}>{bookingSummary.productName}</Text>
-              <Text style={styles.summaryPrice}>฿{bookingSummary.totalPrice?.toLocaleString() || bookingSummary.price?.toLocaleString()}</Text>
+              <Text style={styles.summaryName} numberOfLines={1}>
+                {bookingSummary.product_name || bookingSummary.productName}
+              </Text>
+              <Text style={styles.summaryPrice}>
+                ฿{(bookingSummary.total_price || bookingSummary.totalPrice || 0).toLocaleString()}
+              </Text>
             </View>
             <TouchableOpacity style={styles.summaryButton}>
               <Text style={styles.summaryButtonText}>ดูรายละเอียด</Text>
@@ -297,7 +345,7 @@ export default function ChatScreen() {
                     >
                       <View style={styles.messageContent}>
                         <Text style={styles.messageText}>{item.message}</Text>
-                        <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
+                        <Text style={styles.timeText}>{formatTime(item)}</Text>
                       </View>
                     </View>
                   </View>

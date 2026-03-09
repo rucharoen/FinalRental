@@ -1,20 +1,20 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  View,
-  Text,
+  Alert,
   Image,
-  TouchableOpacity,
-  ScrollView,
   SafeAreaView,
-  Alert
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import authService from '../../../services/auth.service';
+import productService from '../../../services/product.service';
 import shopService from '../../../services/shop.service';
 import styles from '../../../styles/profile.styles';
-import * as ImagePicker from 'expo-image-picker';
-import productService from '../../../services/product.service';
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -55,10 +55,6 @@ export default function ProfileScreen() {
       const userDataObj = freshData && !freshData.error ? freshData : localData;
       const currentUserId = Number(userDataObj?.id || userDataObj?._id || user?.id || user?._id);
 
-      console.log('--- PROFILE DEBUG ---');
-      console.log('Current User ID:', currentUserId);
-      console.log('Shop Data from API:', JSON.stringify(shopData));
-
       let actualShop = null;
       if (shopData?.shops && Array.isArray(shopData.shops)) {
         actualShop = shopData.shops.find((s: any) => Number(s.owner_id) === currentUserId);
@@ -69,10 +65,11 @@ export default function ProfileScreen() {
       }
 
       if (actualShop) {
-        console.log('MATCH FOUND: Store owner detected');
         setShop(actualShop);
-        // Automatically switch if we have a shop
-        setMode('owner');
+
+        // Remove automatic setMode('owner') that forces switch on every focus
+        // This allows user choice to persist.
+        // The initial mode is already handled by params.mode or default state.
 
         // Load product count
         try {
@@ -83,7 +80,6 @@ export default function ProfileScreen() {
           console.error('Error fetching product count:', e);
         }
       } else {
-        console.log('NO MATCH: User does not own any store in this list');
         setShop(null);
       }
     } catch (error) {
@@ -113,6 +109,17 @@ export default function ProfileScreen() {
     }
 
     const status = getKYCStatus();
+
+    // เพิ่มการตรวจสอบสถานะ "รออนุมัติ" (pending)
+    if (status === 'pending') {
+      Alert.alert(
+        "รอการตรวจสอบ",
+        "คำขอเปิดร้านของคุณอยู่ระหว่างการตรวจสอบ",
+        [{ text: "ตกลง" }]
+      );
+      return;
+    }
+
     if (status !== 'verified' && status !== 'approved') {
       Alert.alert(
         "ยืนยันตัวตน",
@@ -251,17 +258,32 @@ export default function ProfileScreen() {
         <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
       </TouchableOpacity>
 
-      {/* Open Shop */}
-      <TouchableOpacity style={styles.menuItem} onPress={handleOpenShop}>
-        <View style={styles.menuIconContainer}>
-          <Feather name="shopping-bag" size={28} color="#000000" />
-        </View>
-        <View style={styles.menuContent}>
-          <Text style={styles.menuTitle}>เปิดร้านปล่อยเช่า</Text>
-          <Text style={styles.menuSubTitle}>เริ่มต้นเส้นทางผู้ให้เช่า</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
-      </TouchableOpacity>
+      {/* Open Shop or Switch Account */}
+      {shop ? (
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => setMode('owner')}
+        >
+          <View style={styles.menuIconContainer}>
+            <Ionicons name="people" size={32} color="#000000" />
+          </View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>เปลี่ยนบัญชีปล่อยเช่า</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity style={styles.menuItem} onPress={handleOpenShop}>
+          <View style={styles.menuIconContainer}>
+            <Feather name="shopping-bag" size={28} color="#000000" />
+          </View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>เปิดร้านปล่อยเช่า</Text>
+            <Text style={styles.menuSubTitle}>เริ่มต้นเส้นทางผู้ให้เช่า</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -319,20 +341,29 @@ export default function ProfileScreen() {
         </View>
         <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
       </TouchableOpacity>
+
+      {/* Switch Account */}
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={() => setMode('renter')}
+      >
+        <View style={styles.menuIconContainer}>
+          <Ionicons name="people" size={32} color="#000000" />
+        </View>
+        <View style={styles.menuContent}>
+          <Text style={styles.menuTitle}>เปลี่ยนบัญชีผู้เช่า</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
+      </TouchableOpacity>
     </View>
   );
 
   const getImageUrl = (imagePath: string) => {
-    console.log('--- DEBUG: getImageUrl ---');
-    console.log('input imagePath:', imagePath);
-
     if (!imagePath) {
-      console.log('result: [placeholder]');
       return 'https://via.placeholder.com/150';
     }
 
     if (imagePath.startsWith('http')) {
-      console.log('result: [absolute]', imagePath);
       return imagePath;
     }
 
@@ -340,7 +371,6 @@ export default function ProfileScreen() {
     // Ensure path starts with /
     const normalizedPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     const fullUrl = `${baseUrl}${normalizedPath}`;
-    console.log('result: [constructed]', fullUrl);
     return fullUrl;
   };
 
@@ -355,11 +385,6 @@ export default function ProfileScreen() {
     image: getImageUrl(shop?.image || user?.profile_picture),
     address: shop?.address || user?.address || 'ไม่ระบุที่อยู่'
   };
-
-  console.log('--- DEBUG: displayData ---');
-  console.log('Mode:', mode);
-  console.log('User profile_picture field:', user?.profile_picture);
-  console.log('Final construction image URL:', displayData.image);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -378,7 +403,7 @@ export default function ProfileScreen() {
               />
             </View>
             <View style={styles.editBadge}>
-              <Feather name="camera" size={16} color="#FFFFFF" />
+              <Feather name="camera" size={16} color="#000000" />
             </View>
           </TouchableOpacity>
 
@@ -411,23 +436,7 @@ export default function ProfileScreen() {
           {renderStatusButton()}
         </View>
 
-        {/* Role Switcher */}
-        {shop && (
-          <View style={styles.switchContainer}>
-            <TouchableOpacity
-              style={[styles.switchButton, mode === 'renter' && styles.activeSwitch]}
-              onPress={() => setMode('renter')}
-            >
-              <Text style={[styles.switchText, mode === 'renter' && styles.activeSwitchText]}>ผู้เช่า</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.switchButton, mode === 'owner' && styles.activeSwitch]}
-              onPress={() => setMode('owner')}
-            >
-              <Text style={[styles.switchText, mode === 'owner' && styles.activeSwitchText]}>ผู้ปล่อยเช่า</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+
 
         {/* Menus */}
         {mode === 'renter' ? renderRenterMenu() : renderOwnerMenu()}

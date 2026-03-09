@@ -1,5 +1,5 @@
 import * as SecureStore from "expo-secure-store";
-import { apiRequest, API_ENDPOINTS } from "./api";
+import { API_ENDPOINTS, apiRequest } from "./api";
 
 // --- Interfaces ---
 export interface RegisterData {
@@ -52,7 +52,7 @@ class AuthService {
     if (response && response.token) {
       await SecureStore.setItemAsync("userToken", response.token);
       await SecureStore.setItemAsync("userData", JSON.stringify(response.user));
-    } console.log(response.user)
+    }
 
     return response;
   }
@@ -159,8 +159,6 @@ class AuthService {
 
     // ตรวจสอบโครงสร้าง response จาก /auth/me (ที่มี { success: true, user: { ... } })
     if (response && response.success && response.user) {
-      console.log('--- DEBUG: getProfile Success ---');
-      console.log('User Object:', JSON.stringify(response.user, null, 2));
       await SecureStore.setItemAsync("userData", JSON.stringify(response.user));
       return response.user;
     }
@@ -251,19 +249,27 @@ class AuthService {
     }
 
     const result = await response.json();
-    console.log('--- DEBUG: updateProfileImage response ---');
-    console.log('Result:', JSON.stringify(result, null, 2));
 
     // บันทึกข้อมูล user ทันทีที่อัปเดตสำเร็จ
     if (result.success && result.user) {
-      console.log('Updating local SecureStore with new user data');
       await SecureStore.setItemAsync("userData", JSON.stringify(result.user));
     } else {
-      console.log('Falling back to getProfile() to refresh data');
       await this.getProfile(); // Refresh profile to get new image URL
     }
 
     return result;
+  }
+
+  // 📌 ลืมรหัสผ่าน
+  async requestPasswordReset(data: { full_name: string; id_card: string; identifier: string }) {
+    return apiRequest(
+      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_FORGOT_PASSWORD_REQUEST}`,
+      {
+        method: "POST",
+        body: JSON.stringify(data),
+        withAuth: false,
+      }
+    );
   }
 }
 

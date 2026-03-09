@@ -1,17 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  SafeAreaView
-} from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import chatService, { Chat } from '../../../services/chat.service';
+import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  SafeAreaView,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 import authService from '../../../services/auth.service';
+import chatService, { Chat } from '../../../services/chat.service';
 import styles from '../../../styles/chat-list.styles';
 
 export default function ChatListScreen() {
@@ -56,13 +56,6 @@ export default function ChatListScreen() {
   };
 
   const renderChatItem = ({ item }: { item: Chat }) => {
-    // 🔥 Debug เพื่อดูข้อมูลในแต่ละแถว
-    console.log('--- [DEBUG] Rendering Chat Item ---', {
-      id: item.chatId,
-      name: item.otherUserName,
-      avatar: item.otherUserAvatar
-    });
-
     // ระบุตัวตนของอีกฝ่ายในแชท
     const otherId = item.userId.toString() === userId ? item.otherUserId : item.userId;
     const isUnread = (item.unreadCount ?? 0) > 0;

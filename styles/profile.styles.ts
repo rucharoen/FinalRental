@@ -1,17 +1,25 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F8F9FA',
     },
     header: {
         alignItems: 'center',
         paddingTop: 15,
-        paddingBottom: 15,
+        paddingBottom: 25,
         backgroundColor: '#FFFFFF',
+        borderBottomLeftRadius: 35,
+        borderBottomRightRadius: 35,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 5,
+        zIndex: 1,
     },
     avatarContainer: {
         width: 120,
@@ -32,15 +40,20 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 0,
         right: 0,
-        backgroundColor: '#3498DB',
+        backgroundColor: '#FFFFFF',
         width: 32,
         height: 32,
         borderRadius: 16,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 2,
-        borderColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#EEEEEE',
         zIndex: 1,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     avatar: {
         width: '100%',

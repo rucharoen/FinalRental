@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    SafeAreaView,
-    TouchableOpacity,
-    TextInput,
-    ScrollView,
-    Alert,
-    StatusBar,
-    ActivityIndicator,
-    Modal,
-    FlatList,
-    Platform
-} from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import authService from '../../../services/auth.service';
 
 // Define theme constants locally since @/constants/theme is missing
@@ -184,7 +184,15 @@ export default function AddressScreen() {
 
             if (response && !response.error) {
                 Alert.alert('สำเร็จ', 'บันทึกที่อยู่เรียบร้อยแล้ว', [
-                    { text: 'ตกลง', onPress: () => router.back() }
+                    {
+                        text: 'ตกลง', onPress: () => {
+                            if (router.canGoBack()) {
+                                router.back();
+                            } else {
+                                router.replace('/(tabs)/profile');
+                            }
+                        }
+                    }
                 ]);
             } else {
                 throw new Error(response?.message || 'เกิดข้อผิดพลาดในการบันทึกที่อยู่');
@@ -210,7 +218,13 @@ export default function AddressScreen() {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" />
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <TouchableOpacity onPress={() => {
+                    if (router.canGoBack()) {
+                        router.back();
+                    } else {
+                        router.replace('/(tabs)/profile');
+                    }
+                }} style={styles.backButton}>
                     <Feather name="chevron-left" size={32} color={COLORS.black} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>ที่อยู่ใหม่</Text>

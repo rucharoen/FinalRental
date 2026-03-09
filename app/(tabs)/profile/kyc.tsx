@@ -1,22 +1,21 @@
-import React, { useState } from 'react';
-import {
-    View,
-    Text,
-    TouchableOpacity,
-    TextInput,
-    Image,
-    ScrollView,
-    SafeAreaView,
-    Alert,
-    KeyboardAvoidingView,
-    Platform
-} from 'react-native';
-import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import styles from '../../../styles/kyc.styles';
+import { useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+    Alert,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    SafeAreaView,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
+} from 'react-native';
 import authService from '../../../services/auth.service';
-import { API_ENDPOINTS } from '../../../services/api';
+import styles from '../../../styles/kyc.styles';
 
 export default function KYCScreen() {
     const router = useRouter();
@@ -128,10 +127,6 @@ export default function KYCScreen() {
             formData.append('full_name', fullName);           // เพิ่มกลับเข้าไป
             formData.append('expiry_date', expiryDate);        // เพิ่มกลับเข้าไป
 
-            console.log('--- KYC DEBUG ---');
-            console.log('Target URL:', `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.UPLOAD_KYC}`);
-            console.log('ID Number:', idNumber);
-
             if (idImage) {
                 const idFileName = idImage.split('/').pop() || 'id_card.jpg';
                 const idMatch = /\.(\w+)$/.exec(idFileName);
@@ -162,7 +157,15 @@ export default function KYCScreen() {
             Alert.alert(
                 'ส่งข้อมูลเรียบร้อย',
                 'ข้อมูลของคุณได้รับการบันทึกแล้ว ระบบจะอัปเดตสถานะการยืนยันตัวตนของคุณในลำดับถัดไป',
-                [{ text: 'ตกลง', onPress: () => router.push('/(tabs)/profile') }]
+                [{
+                    text: 'ตกลง', onPress: () => {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.replace('/(tabs)/profile');
+                        }
+                    }
+                }]
             );
         } catch (error: any) {
             console.error('KYC Submit Error:', error);
@@ -271,7 +274,17 @@ export default function KYCScreen() {
                 <View style={styles.header}>
                     <TouchableOpacity
                         style={styles.backButton}
-                        onPress={() => step === 2 ? setStep(1) : router.back()}
+                        onPress={() => {
+                            if (step === 2) {
+                                setStep(1);
+                            } else {
+                                if (router.canGoBack()) {
+                                    router.back();
+                                } else {
+                                    router.replace('/(tabs)/profile');
+                                }
+                            }
+                        }}
                     >
                         <Ionicons name="chevron-back" size={28} color="#000000" />
                     </TouchableOpacity>

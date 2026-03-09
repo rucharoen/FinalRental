@@ -1,5 +1,4 @@
-import { apiRequest } from './api';
-import { API_ENDPOINTS } from './api';
+import { API_ENDPOINTS, apiRequest } from './api';
 
 export interface ChatMessage {
   _id?: string;
@@ -65,7 +64,7 @@ class ChatService {
       }
     );
 
-    console.log('--- [DEBUG] Chat List Response ---', JSON.stringify(response, null, 2));
+    console.log('[DEBUG] Chat List Response for User:', userId, JSON.stringify(response, null, 2));
 
     // แมปข้อมูลจาก Backend ให้ตรงกับ Interface ของแอป
     const list = response?.data || [];
@@ -73,8 +72,8 @@ class ChatService {
       ...item,
       chatId: item.room_id,
       otherUserId: item.partner_id?.toString(),
-      otherUserName: item.partner_name,
-      otherUserAvatar: this.formatImageUrl(item.partner_avatar),
+      otherUserName: item.partner_shop_name || item.shop_name || item.partner_name || item.partner_shopName || 'ผู้ใช้',
+      otherUserAvatar: this.formatImageUrl(item.partner_shop_image || item.partner_image || item.shop_image || item.partner_avatar || item.partner_shopAvatar),
       lastMessage: item.message,
       lastMessageTime: item.created_at,
       userId: userId // เราคือผู้ใช้งานปัจจุบัน

@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-    View,
-    Text,
-    SafeAreaView,
-    FlatList,
-    Image,
-    TouchableOpacity,
-    ActivityIndicator,
-    Alert,
-    Modal,
-    StatusBar,
-    RefreshControl
-} from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import productService from '@/services/product.service';
 import { styles } from '@/styles/product_management.styles';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    RefreshControl,
+    SafeAreaView,
+    StatusBar,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 const ProductManagementScreen = () => {
     const router = useRouter();
@@ -38,8 +38,6 @@ const ProductManagementScreen = () => {
 
             const response = await productService.getOwnProducts();
 
-            console.log('[DEBUG] Raw Response from Service:', JSON.stringify(response, null, 2));
-
             let items = [];
             if (response && response.products && Array.isArray(response.products)) {
                 items = response.products;
@@ -49,7 +47,6 @@ const ProductManagementScreen = () => {
                 items = response.data;
             }
 
-            console.log('[DEBUG] Setting items to state:', items.length, 'products found');
             setProducts(items);
         } catch (error: any) {
             console.error('[DEBUG] Fetch My Products Error:', error);

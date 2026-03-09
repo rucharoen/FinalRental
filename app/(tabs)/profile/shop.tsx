@@ -1,18 +1,18 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    View,
-    Text,
-    TouchableOpacity,
-    TextInput,
+    Alert,
     SafeAreaView,
     ScrollView,
-    Alert,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import styles from '../../../styles/shop_registration.styles';
-import shopService from '../../../services/shop.service';
 import authService from '../../../services/auth.service';
+import shopService from '../../../services/shop.service';
+import styles from '../../../styles/shop_registration.styles';
 
 export default function ShopRegistrationScreen() {
     const router = useRouter();
@@ -40,7 +40,7 @@ export default function ShopRegistrationScreen() {
                 );
             }
         } catch (error) {
-            console.log('No existing shop found or error:', error);
+            // No existing shop found or error
         } finally {
             setInitialChecking(false);
         }
@@ -89,7 +89,17 @@ export default function ShopRegistrationScreen() {
 
     const renderHeader = () => (
         <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => step > 1 ? setStep(step - 1) : router.back()}>
+            <TouchableOpacity style={styles.backButton} onPress={() => {
+                if (step > 1) {
+                    setStep(step - 1);
+                } else {
+                    if (router.canGoBack()) {
+                        router.back();
+                    } else {
+                        router.replace('/(tabs)/profile');
+                    }
+                }
+            }}>
                 <Ionicons name="chevron-back" size={28} color="#000000" />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>ยินดีต้อนรับผู้ใช้ใหม่</Text>
@@ -162,7 +172,13 @@ export default function ShopRegistrationScreen() {
             </ScrollView>
 
             <View style={styles.formFooter}>
-                <TouchableOpacity style={styles.cancelButton} onPress={() => router.back()}>
+                <TouchableOpacity style={styles.cancelButton} onPress={() => {
+                    if (router.canGoBack()) {
+                        router.back();
+                    } else {
+                        router.replace('/(tabs)/profile');
+                    }
+                }}>
                     <Text style={styles.cancelButtonText}>ยกเลิก</Text>
                 </TouchableOpacity>
                 <TouchableOpacity

@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions, Platform } from 'react-native';
+import { Dimensions, Platform, StyleSheet } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -22,12 +22,38 @@ const styles = StyleSheet.create({
         width: width,
         height: width,
         backgroundColor: '#F7F8FA',
+    },
+    imageWrapper: {
+        width: width,
+        height: width,
         alignItems: 'center',
         justifyContent: 'center',
     },
     productImage: {
-        width: '80%',
-        height: '90%',
+        width: '100%',
+        height: '100%',
+    },
+    paginationContainer: {
+        position: 'absolute',
+        bottom: 15,
+        left: 0,
+        right: 0,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    paginationDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: 'rgba(0, 0, 0, 0.2)',
+        marginHorizontal: 4,
+    },
+    paginationDotActive: {
+        backgroundColor: '#3498DB',
+        width: 12,
+        height: 8,
+        borderRadius: 4,
     },
     infoContainer: {
         padding: 20,

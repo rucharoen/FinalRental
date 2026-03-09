@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  SafeAreaView
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Ionicons, Feather, MaterialCommunityIcons, AntDesign } from '@expo/vector-icons';
-import { Alert } from 'react-native';
-import authService from '../../../services/auth.service';
-import productService, { Product } from '@/services/product.service';
 import SelectionModal from '@/components/SelectionModal';
+import productService, { Product } from '@/services/product.service';
 import styles from '@/styles/product-detail';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
+import authService from '../../../services/auth.service';
 
 
 export default function ProductDetailScreen() {
@@ -25,6 +25,7 @@ export default function ProductDetailScreen() {
   const [activeTab, setActiveTab] = useState<'details' | 'terms'>('details');
   const [modalVisible, setModalVisible] = useState(false);
   const [modalType, setModalType] = useState<'cart' | 'rent'>('cart');
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   useEffect(() => {
     if (id) {
@@ -36,7 +37,6 @@ export default function ProductDetailScreen() {
   const fetchProduct = async () => {
     try {
       setLoading(true);
-      console.log('[DEBUG] Fetching product with ID:', id);
 
       let foundProduct = null;
 
@@ -48,9 +48,8 @@ export default function ProductDetailScreen() {
           (p?.id?.toString() === id?.toString()) ||
           (p?._id?.toString() === id?.toString())
         );
-        if (foundProduct) console.log('[DEBUG] Found in own products');
       } catch (e) {
-        console.log('[DEBUG] Error fetching own products');
+        // Error fetching own products
       }
 
       // 2. ถ้าไม่เจอในของตัวเอง ให้หาในรายการทั่วไป
@@ -61,20 +60,18 @@ export default function ProductDetailScreen() {
             (p?.id?.toString() === id?.toString()) ||
             (p?._id?.toString() === id?.toString())
           );
-          if (foundProduct) console.log('[DEBUG] Found in public products');
         } catch (e) {
-          console.log('[DEBUG] Error fetching public products');
+          // Error fetching public products
         }
       }
 
       if (foundProduct) {
         setProduct(foundProduct);
       } else {
-        console.log('[DEBUG] Product not found in any list for ID:', id);
         Alert.alert('แจ้งเตือน', 'ไม่พบรายละเอียดสินค้า');
       }
     } catch (error) {
-      console.error('[DEBUG] Product Detail Fetch Error:', error);
+      // Product Detail Fetch Error
     } finally {
       setLoading(false);
     }
@@ -165,35 +162,77 @@ export default function ProductDetailScreen() {
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Product Image */}
+        {/* Product Image Slider */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{
-              uri: (() => {
-                const imgData = product.images || (product as any).product_images;
-                if (!imgData) return 'https://via.placeholder.com/150';
+          {(() => {
+            const imgData = product.images || (product as any).product_images;
+            let imagesArr: string[] = [];
 
-                let imagesArr = [];
-                try {
-                  imagesArr = typeof imgData === 'string' ? JSON.parse(imgData) : imgData;
-                } catch (e) {
-                  imagesArr = [imgData];
-                }
+            try {
+              if (typeof imgData === 'string') {
+                imagesArr = JSON.parse(imgData);
+              } else if (Array.isArray(imgData)) {
+                imagesArr = imgData;
+              } else if (imgData) {
+                imagesArr = [imgData as any];
+              }
+            } catch (e) {
+              imagesArr = [imgData as any];
+            }
 
-                if (!Array.isArray(imagesArr) || imagesArr.length === 0) return 'https://via.placeholder.com/150';
+            if (!Array.isArray(imagesArr) || imagesArr.length === 0) {
+              imagesArr = ['https://via.placeholder.com/150'];
+            }
 
-                const path = imagesArr[0];
-                if (!path) return 'https://via.placeholder.com/150';
-                if (path.startsWith('http')) return path;
+            const getImageUrl = (path: any) => {
+              if (!path) return 'https://via.placeholder.com/150';
+              if (typeof path !== 'string') return 'https://via.placeholder.com/150';
+              if (path.startsWith('http')) return path;
+              const baseUrl = 'https://finalrental.onrender.com';
+              const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+              return `${baseUrl}${normalizedPath}`;
+            };
 
-                const baseUrl = 'https://finalrental.onrender.com';
-                const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-                return `${baseUrl}${normalizedPath}`;
-              })()
-            }}
-            style={styles.productImage}
-            resizeMode="contain"
-          />
+            return (
+              <>
+                <ScrollView
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onMomentumScrollEnd={(e) => {
+                    const contentOffset = e.nativeEvent.contentOffset.x;
+                    const viewSize = e.nativeEvent.layoutMeasurement.width;
+                    const index = Math.floor(contentOffset / viewSize);
+                    setCurrentImageIndex(index);
+                  }}
+                >
+                  {imagesArr.map((img, index) => (
+                    <View key={index} style={styles.imageWrapper}>
+                      <Image
+                        source={{ uri: getImageUrl(img) }}
+                        style={styles.productImage}
+                        resizeMode="contain"
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+
+                {imagesArr.length > 1 && (
+                  <View style={styles.paginationContainer}>
+                    {imagesArr.map((_, index) => (
+                      <View
+                        key={index}
+                        style={[
+                          styles.paginationDot,
+                          currentImageIndex === index && styles.paginationDotActive
+                        ]}
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
+            );
+          })()}
         </View>
 
         {/* Product Info */}
@@ -316,7 +355,11 @@ export default function ProductDetailScreen() {
         <View style={styles.footerIcons}>
           <TouchableOpacity
             style={styles.iconButton}
-            onPress={() => router.push(`/(tabs)/chat/${product.owner_id || 'default'}`)}
+            onPress={() => {
+              const actualOwnerId = product.owner_id || (product as any).user_id || (product as any).userId || (product as any).shop_owner_id;
+              console.log('[DEBUG] Navigating to chat with owner:', actualOwnerId, 'from product:', product.name);
+              router.push(`/(tabs)/chat/${actualOwnerId || 'default'}`);
+            }}
           >
             <Ionicons name="chatbubble-ellipses-outline" size={24} color="#7F8C8D" />
             <Text style={styles.iconLabel}>แชท</Text>

@@ -1,20 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  SafeAreaView,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  ActivityIndicator
-} from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import productService, { Product } from '@/services/product.service';
 import authService from '@/services/auth.service';
+import productService, { Product } from '@/services/product.service';
 import rentalService from '@/services/rental.service';
 import { styles } from '@/styles/checkout.styles';
-import { Alert } from 'react-native';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  SafeAreaView,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View
+} from 'react-native';
 
 const CheckoutScreen = () => {
   const router = useRouter();
@@ -200,9 +200,6 @@ const CheckoutScreen = () => {
         quantity: 1,
         status: 'pending_owner' // เริ่มต้นเป็นรอเจ้าของอนุมัติ
       };
-
-      console.log('--- DEBUG: Creating Booking ---');
-      console.log('Booking Data:', JSON.stringify(bookingData, null, 2));
 
       await rentalService.createBooking(bookingData as any);
 

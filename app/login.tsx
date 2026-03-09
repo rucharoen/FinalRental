@@ -1,17 +1,17 @@
-import React, { useState } from "react";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useRouter } from "expo-router";
+import { useState } from "react";
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useRouter } from "expo-router";
-import Ionicons from "@expo/vector-icons/Ionicons";
 import AuthService from "../services/auth.service";
 
 export default function LoginScreen() {
@@ -120,7 +120,11 @@ export default function LoginScreen() {
   };
 
   const handleBack = () => {
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/");
+    }
   };
 
   const handleRegister = () => {
@@ -128,8 +132,7 @@ export default function LoginScreen() {
   };
 
   const handleForgotPassword = () => {
-    // ฟังก์ชันลืมรหัสผ่าน
-    console.log("Forgot password");
+    router.push("/forgot-password");
   };
 
   return (

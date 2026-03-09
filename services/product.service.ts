@@ -1,6 +1,5 @@
-import { apiRequest } from './api';
-import { API_ENDPOINTS } from './api';
 import * as SecureStore from 'expo-secure-store';
+import { API_ENDPOINTS, apiRequest } from './api';
 
 export interface Product {
   id: number;
@@ -80,9 +79,8 @@ class ProductService {
         withAuth: true,
       }
     ).then(response => {
-      console.log('[ProductService] getOwnProducts Success:', JSON.stringify(response, null, 2));
       if (response && response.products) {
-        console.log(`[ProductService] Found ${response.products.length} products`);
+        // Success
       } else {
         console.warn('[ProductService] No products key found in response');
       }
@@ -110,10 +108,8 @@ class ProductService {
         let errorMsg = `Update product failed: ${response.status}`;
         try {
           const resData = await response.json();
-          console.log('[ProductService] Update Error Response:', JSON.stringify(resData, null, 2));
           if (resData && resData.message) errorMsg = resData.message;
         } catch (e) {
-          console.log('[ProductService] Could not parse error JSON');
         }
         throw new Error(errorMsg);
       }

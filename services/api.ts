@@ -126,4 +126,7 @@ export const API_ENDPOINTS = {
 
   // ADDRESS
   ADDRESS_UPDATE: '/address/update',
+
+  // FORGOT PASSWORD
+  AUTH_FORGOT_PASSWORD_REQUEST: '/auth/forgot-password-request',
 };
