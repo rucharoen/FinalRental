@@ -1,4 +1,4 @@
-import { StyleSheet, Dimensions, Platform } from 'react-native';
+import { Dimensions, Platform, StyleSheet } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -76,41 +76,41 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-start',
     },
     messageContainer: {
-        maxWidth: '80%',
-        padding: 10,
-        paddingHorizontal: 12,
-        borderRadius: 8,
+        maxWidth: '75%',
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        borderRadius: 20,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
+        shadowOpacity: 0.1,
         shadowRadius: 2,
-        elevation: 2,
-        position: 'relative',
+        elevation: 1,
     },
     leftMessage: {
         backgroundColor: '#FFFFFF',
+        borderBottomLeftRadius: 4,
         borderWidth: 1,
-        borderColor: '#F0F0F0',
+        borderColor: '#E1E8ED',
     },
     rightMessage: {
-        backgroundColor: '#D6EAF8',
+        backgroundColor: '#3498DB',
+        borderBottomRightRadius: 4,
     },
     messageContent: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        flexWrap: 'wrap',
+        flexDirection: 'column',
     },
     messageText: {
         fontSize: 15,
-        color: '#333',
-        lineHeight: 20,
+        color: '#2C3E50',
+        lineHeight: 22,
     },
     timeText: {
         fontSize: 10,
-        color: '#7F8C8D',
-        marginLeft: 8,
-        marginBottom: -2,
+        color: '#95A5A6',
+        alignSelf: 'flex-end',
+        marginTop: 4,
     },
+
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',

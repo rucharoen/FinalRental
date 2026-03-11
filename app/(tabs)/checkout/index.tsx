@@ -1,8 +1,11 @@
 import authService from '@/services/auth.service';
+import cartService from '@/services/cart.service';
 import productService, { Product } from '@/services/product.service';
 import rentalService from '@/services/rental.service';
+import shopService from '@/services/shop.service';
 import { styles } from '@/styles/checkout.styles';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import chatService from '@/services/chat.service';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -19,49 +22,99 @@ import {
 const CheckoutScreen = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { productId, startDate, endDate } = params;
+  const { items, productId, startDate, endDate } = params;
 
-  const [product, setProduct] = useState<Product | null>(null);
-  const [userData, setUserData] = useState<any>(null); // Added userData state
+  const [checkoutItems, setCheckoutItems] = useState<any[]>([]);
+  const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [reserving, setReserving] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'qr' | 'card'>('qr');
 
   useEffect(() => {
-    if (productId) {
-      loadInitialData(); // Changed to loadInitialData
-    }
-  }, [productId]);
+    loadInitialData();
+  }, [items, productId, startDate, endDate]);
 
   const loadInitialData = async () => {
     try {
       setLoading(true);
+      
+      let itemsToProcess: any[] = [];
 
-      // 1. โหลดข้อมูลสินค้า
+      // Case 1: Direct Rent Now from Product Detail
       if (productId) {
         try {
-          // พยายามดึงแบบรายชิ้นก่อนเพื่อให้ได้ข้อมูลครบถ้วน (เช่น deposit)
-          const data = await productService.getProductById(productId as string);
+          const detail = await productService.getProductById(productId as string);
+          if (detail) {
+            const productDetail = detail as any;
+            itemsToProcess = [{
+              id: 'direct_' + Date.now(),
+              productId: productId,
+              productName: productDetail.name,
+              image: (productDetail.images && productDetail.images.length > 0) ? productDetail.images[0] : (productDetail.image || ''),
+              price: productDetail.price_per_day || productDetail.price,
+              quantity: 1,
+              startDate: startDate,
+              endDate: endDate,
+              shopName: productDetail.shop_name || 'ร้านค้าทั่วไป',
+              fullProduct: productDetail,
+              owner_id: productDetail.owner_id || productDetail.user_id || productDetail.shop_owner_id,
+              deposit: productDetail.deposit || 0
+            }];
+          }
+        } catch (err) {
+          console.error('Error fetching direct product:', err);
+        }
+      } 
+      // Case 2: From Cart
+      else if (items) {
+        const allCartItems = await cartService.getCartItems();
+        const selectedIds = (items as string || '').split(',');
+        const selectedCartItems = allCartItems.filter(i => selectedIds.includes(i.id));
 
-          if (data && !(data as any).error) {
-            setProduct(data);
-          } else {
-            throw new Error('Not found');
-          }
-        } catch (itemError) {
-          // Fallback
-          // หากดึงรายชิ้นไม่ได้ (อาจจะเพราะ 404) ให้ดึงจากรายการทั้งหมดแทน
-          const allProducts = await productService.getProducts();
-          if (Array.isArray(allProducts)) {
-            const foundProduct = allProducts.find(p => p && p.id && p.id.toString() === productId);
-            if (foundProduct) {
-              setProduct(foundProduct);
+        if (selectedCartItems.length > 0) {
+          itemsToProcess = await Promise.all(selectedCartItems.map(async (cartItem) => {
+            try {
+              const detail = await productService.getProductById(cartItem.productId.toString());
+              const productDetail = detail as any;
+              
+              let shopName = productDetail.shop_name || cartItem.shopName;
+              
+              if (!shopName || shopName === 'ร้านค้าทั่วไป' || shopName.startsWith('Shop ')) {
+                try {
+                  const shopInfo = await shopService.getShopInfo(productDetail.shop_id.toString());
+                  if (shopInfo && shopInfo.name) {
+                    shopName = shopInfo.name;
+                  }
+                } catch (shopErr) {}
+              }
+
+              return {
+                ...cartItem,
+                fullProduct: productDetail,
+                shopName: shopName || 'ร้านค้าทั่วไป',
+                owner_id: productDetail.owner_id || productDetail.user_id || productDetail.shop_owner_id,
+                deposit: productDetail.deposit || 0
+              };
+            } catch (err) {
+              return {
+                ...cartItem,
+                fullProduct: null,
+                owner_id: 0,
+                deposit: 0
+              };
             }
-          }
+          }));
         }
       }
 
-      // 2. โหลดข้อมูลผู้ใช้ (ที่อยู่)
+      if (itemsToProcess.length === 0) {
+        setLoading(false);
+        return;
+      }
+
+      setCheckoutItems(itemsToProcess);
+
+      // 3. Load user profile
       const profile = await authService.getProfile();
       if (profile && !profile.error) {
         setUserData(profile);
@@ -71,13 +124,12 @@ const CheckoutScreen = () => {
       }
 
     } catch (error) {
-      // Error loading data
+      console.error('Error loading checkout data:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  // ฟังก์ชันช่วยแสดงผลที่อยู่แบบสวยงาม
   const renderAddress = () => {
     if (!userData?.address || userData.address === 'ไม่ระบุที่อยู่') {
       return {
@@ -100,67 +152,72 @@ const CheckoutScreen = () => {
     }
   };
 
-  const address = renderAddress(); // Called renderAddress
+  const address = renderAddress();
 
-  const calculateDays = () => {
-    if (!startDate || !endDate) return 0;
+  const getItemDays = (item: any) => {
+    if (!item.startDate || !item.endDate) return 1;
 
-    // ฟังก์ชันช่วยแปลงวันที่ภาษาไทยเป็น Date object สำหรับคำนวณ
     const parseThaiDate = (dateStr: string) => {
-      const months = [
-        "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-        "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-      ];
-      const parts = dateStr.split(' ');
+      const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+      const parts = dateStr.trim().split(/\s+/);
       const day = parseInt(parts[0]);
       const monthIndex = months.indexOf(parts[1]);
-      let year = parts[2] ? parseInt(parts[2]) : 2026 + 543; // ถ้าไม่มีปี (startDate) ให้ใช้ปีปัจจุบัน พ.ศ.
-
-      // แปลงปี พ.ศ. เป็น ค.ศ.
-      const yearAD = year - 543;
-      return new Date(yearAD, monthIndex, day);
+      const currentYearThai = new Date().getFullYear() + 543;
+      let year = parts[2] ? parseInt(parts[2]) : currentYearThai;
+      return new Date(year - 543, monthIndex, day);
     };
 
     try {
-      const start = parseThaiDate(startDate as string);
-      const end = parseThaiDate(endDate as string);
+      const start = parseThaiDate(item.startDate);
+      const end = parseThaiDate(item.endDate);
       const diffTime = Math.abs(end.getTime() - start.getTime());
-      const daysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      return isNaN(daysCount) ? 0 : daysCount;
+      const days = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return isNaN(days) || days < 1 ? 1 : days;
     } catch (e) {
-      console.error('Date calculation error:', e);
-      return 0;
+      return 1;
     }
   };
 
-  const days = calculateDays();
-  const rentalPrice = product ? (Number(product.price_per_day) || 0) * days : 0;
-  const deliveryFee = 45;
-  const depositFee = product ? Number(product.deposit) || 0 : 0;
-  const totalAmount = rentalPrice + deliveryFee + depositFee;
+  // Group items by shop
+  const groupedByShop = checkoutItems.reduce((acc: any, item: any) => {
+    const shop = item.shopName || 'ร้านค้าทั่วไป';
+    if (!acc[shop]) acc[shop] = [];
+    acc[shop].push(item);
+    return acc;
+  }, {});
 
-  const getImageUrl = (item: any) => {
-    const imgData = item.images || item.product_images;
-    if (!imgData) return 'https://via.placeholder.com/150';
-
-    try {
-      const parsed = typeof imgData === 'string' ? JSON.parse(imgData) : imgData;
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const path = parsed[0];
-        if (!path) return 'https://via.placeholder.com/150';
-        if (path.startsWith('http')) return path;
-
-        const baseUrl = 'https://finalrental.onrender.com';
-        const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-        return `${baseUrl}${normalizedPath}`;
-      }
-    } catch (e) {
-      console.error('Image parse error:', e);
-    }
-    return 'https://via.placeholder.com/150';
-  };
+  // Calculate totals
+  const totalRentalFee = checkoutItems.reduce((sum, item) => sum + (item.price * item.quantity * getItemDays(item)), 0);
+  const totalDeposit = checkoutItems.reduce((sum, item) => sum + (Number(item.deposit || 0) * item.quantity), 0);
+  const deliveryFee = 50 * Object.keys(groupedByShop).length; // Fee per shop
+  const totalAmount = totalRentalFee + totalDeposit + deliveryFee;
 
   const handleReserve = async () => {
+    // 1. ตรวจสอบการยืนยันตัวตน (KYC)
+    const kycStatus = userData?.kyc_status || 'none';
+    
+    if (kycStatus === 'pending') {
+      Alert.alert(
+        "รอการตรวจสอบ",
+        "การยืนยันตัวตนของคุณอยู่ระหว่างการตรวจสอบ กรุณารอผลการอนุมัติก่อนทำการเช่า",
+        [{ text: "ตกลง" }]
+      );
+      return;
+    }
+
+    if (kycStatus !== 'verified' && kycStatus !== 'approved') {
+      Alert.alert(
+        "ยืนยันตัวตน",
+        "กรุณายืนยันตัวตนให้สำเร็จก่อนจึงจะสามารถเช่าสินค้าได้",
+        [
+          { text: "ยกเลิก", style: "cancel" },
+          { text: "ไปหน้ายืนยันตัวตน", onPress: () => router.push('/(tabs)/profile/kyc') }
+        ]
+      );
+      return;
+    }
+
+    // 2. ตรวจสอบที่อยู่
     if (!userData?.address || userData.address === 'ไม่ระบุที่อยู่') {
       Alert.alert('แจ้งเตือน', 'กรุณาระบุที่อยู่ในการจัดส่งก่อนทำการจอง', [
         { text: 'ไปเพิ่มที่อยู่', onPress: () => router.push('/(tabs)/profile/address') }
@@ -168,50 +225,50 @@ const CheckoutScreen = () => {
       return;
     }
 
-    if (!product || !userData) return;
+    if (checkoutItems.length === 0 || !userData) return;
 
     try {
       setReserving(true);
 
-      // แปลงวันที่สำหรับส่งให้ API (ควรเป็น ISO format หรือวันที่ระบบเข้าใจ)
       const parseThaiDateToISO = (dateStr: string) => {
-        const months = [
-          "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
-          "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
-        ];
-        const parts = dateStr.split(' ');
+        const months = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
+        const parts = dateStr.trim().split(/\s+/);
         const day = parseInt(parts[0]);
         const monthIndex = months.indexOf(parts[1]);
-        const year = parts[2] ? parseInt(parts[2]) - 543 : 2026;
+        const currentYear = new Date().getFullYear();
+        const year = parts[2] ? parseInt(parts[2]) - 543 : currentYear;
         return new Date(year, monthIndex, day).toISOString();
       };
 
-      const bookingData = {
-        product_id: product.id.toString(),
-        renter_id: userData.id.toString(),
-        owner_id: product.owner_id,
-        days: days,
-        start_date: parseThaiDateToISO(startDate as string),
-        end_date: parseThaiDateToISO(endDate as string),
-        rental_fee: rentalPrice,
-        deposit_fee: depositFee,
-        shipping_fee: deliveryFee,
-        total_price: totalAmount,
-        quantity: 1,
-        status: 'pending_owner' // เริ่มต้นเป็นรอเจ้าของอนุมัติ
-      };
+      // Create bookings for each item
+      for (const item of checkoutItems) {
+        const days = getItemDays(item);
+        const bookingData = {
+          product_id: item.productId.toString(),
+          renter_id: userData.id.toString(),
+          owner_id: item.owner_id,
+          days: days,
+          start_date: parseThaiDateToISO(item.startDate),
+          end_date: parseThaiDateToISO(item.endDate),
+          rental_fee: item.price * item.quantity * days,
+          deposit_fee: Number(item.deposit || 0) * item.quantity,
+          shipping_fee: 50, // shipping per item or per shop depending on backend
+          total_price: (item.price * item.quantity * days) + (Number(item.deposit || 0) * item.quantity) + 50,
+          quantity: item.quantity,
+          status: 'pending_owner'
+        };
+        await rentalService.createBooking(bookingData as any);
+      }
 
-      await rentalService.createBooking(bookingData as any);
+      // Clear booked items from cart
+      for (const item of checkoutItems) {
+        await cartService.removeFromCart(item.id);
+      }
 
       Alert.alert(
         'จองสำเร็จ',
         'รายการจองของคุณถูกส่งไปยังเจ้าของร้านแล้ว กรุณารอเจ้าของอนุมัติก่อนทำการชำระเงิน',
-        [
-          {
-            text: 'ดูรายการเช่าของฉัน',
-            onPress: () => router.push('/(tabs)/profile/bookings')
-          }
-        ]
+        [{ text: 'ดูรายการเช่าของฉัน', onPress: () => router.push('/(tabs)/profile/bookings') }]
       );
     } catch (error: any) {
       console.error('Reserve booking failed:', error);
@@ -229,7 +286,7 @@ const CheckoutScreen = () => {
     );
   }
 
-  if (!product) {
+  if (checkoutItems.length === 0) {
     return (
       <View style={styles.errorContainer}>
         <Text>ไม่พบข้อมูลสินค้า</Text>
@@ -242,12 +299,11 @@ const CheckoutScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="chevron-back" size={28} color="#2C3E50" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>ทำการเช่า</Text>
+        <Text style={styles.headerTitle}>ทำการจองเช่า</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -260,39 +316,66 @@ const CheckoutScreen = () => {
           <Text style={styles.addressDetail}>{address.detail}</Text>
         </TouchableOpacity>
 
-        {/* Product Card */}
-        <View style={styles.card}>
-          <View style={styles.shopHeader}>
-            <MaterialIcons name="store" size={22} color="#2C3E50" />
-            <Text style={styles.shopName}>ร้านค้า ID: {product.shop_id || 'ทั่วไป'}</Text>
-          </View>
-          <View style={styles.productInfoRow}>
-            <Image
-              source={{ uri: getImageUrl(product) }}
-              style={styles.productImage}
-            />
-            <View style={styles.productDetails}>
-              <Text style={styles.productTitle} numberOfLines={2}>{product.name}</Text>
-              <Text style={styles.rentDate}>ระยะเวลาเช่า {startDate} - {endDate}</Text>
-              <View style={styles.priceDayRow}>
-                <Text style={styles.pricePerDay}>{product.price_per_day || 0} ฿/วัน</Text>
+        {/* Grouped Items by Shop */}
+        {Object.entries(groupedByShop).map(([shopName, items]: [string, any]) => (
+          <View key={shopName} style={styles.card}>
+            <View style={styles.shopHeader}>
+              <MaterialIcons name="store" size={22} color="#2C3E50" />
+              <Text style={styles.shopName}>{shopName}</Text>
+            </View>
+            
+            {items.map((item: any, idx: number) => (
+              <View key={item.id} style={[styles.productInfoRow, idx > 0 && { marginTop: 15, borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 15 }]}>
+                <Image
+                  source={{ uri: chatService.formatImageUrl(item.image) || 'https://via.placeholder.com/150' }}
+                  style={styles.productImage}
+                />
+                <View style={styles.productDetails}>
+                  <Text style={styles.productTitle} numberOfLines={2}>{item.productName}</Text>
+                  <Text style={styles.rentDate}>ระยะเวลา: {item.startDate} - {item.endDate}</Text>
+                  <View style={styles.priceDayRow}>
+                    <Text style={styles.pricePerDay}>
+                      {item.price.toLocaleString()} ฿/วัน x {getItemDays(item)} วัน x {item.quantity} ชิ้น
+                    </Text>
+                  </View>
+                </View>
               </View>
+            ))}
+
+            {/* Shop specific shipping info (like Shopee) */}
+            <View style={{ marginTop: 15, borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 10 }}>
+               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 13, color: '#7f8c8d' }}>ตัวเลือกการจัดส่ง (Standard Delivery)</Text>
+                  <Text style={{ fontSize: 13, color: '#333' }}>฿50.00</Text>
+               </View>
+               <Text style={{ fontSize: 11, color: '#2ecc71', marginTop: 2 }}>จะได้รับภายใน 2-3 วันทำการ</Text>
             </View>
           </View>
-        </View>
+        ))}
 
-        {/* Standard Delivery */}
-        <View style={styles.infoRow}>
-          <View style={styles.infoCol}>
-            <Text style={styles.infoLabelBold}>Standard Delivery - <Text style={styles.infoLabelNormal}>ส่งธรรมดาในประเทศ</Text></Text>
+        {/* Summary Breakdown */}
+        <View style={styles.card}>
+          <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 15 }}>สรุปยอดจองเช่า</Text>
+          
+          <View style={styles.infoRowSmall}>
+            <Text style={styles.infoLabelNormal}>รวมค่าเช่าสินค้า</Text>
+            <Text style={styles.infoValueSmall}>฿{totalRentalFee.toLocaleString()}</Text>
           </View>
-          <Text style={styles.infoValue}>฿{deliveryFee}</Text>
-        </View>
 
-        {/* Deposit Card */}
-        <View style={styles.infoRow}>
-          <Text style={styles.infoLabelBold}>ค่ามัดจำสินค้า</Text>
-          <Text style={styles.infoValue}>฿{depositFee}</Text>
+          <View style={styles.infoRowSmall}>
+            <Text style={styles.infoLabelNormal}>รวมเงินมัดจำ</Text>
+            <Text style={styles.infoValueSmall}>฿{totalDeposit.toLocaleString()}</Text>
+          </View>
+
+          <View style={styles.infoRowSmall}>
+            <Text style={styles.infoLabelNormal}>รวมค่าจัดส่ง ({Object.keys(groupedByShop).length} ร้านค้า)</Text>
+            <Text style={styles.infoValueSmall}>฿{deliveryFee.toLocaleString()}</Text>
+          </View>
+
+          <View style={[styles.infoRowSmall, { marginTop: 10, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 10 }]}>
+            <Text style={{ fontSize: 16, fontWeight: 'bold' }}>ยอดจองเช่าทั้งหมด</Text>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#E74C3C' }}>฿{totalAmount.toLocaleString()}</Text>
+          </View>
         </View>
 
         {/* Payment Methods */}
@@ -333,12 +416,13 @@ const CheckoutScreen = () => {
             />
           </TouchableOpacity>
         </View>
+        <View style={{ height: 100 }} />
       </ScrollView>
 
       {/* Footer */}
       <View style={styles.footer}>
         <View style={styles.totalContainer}>
-          <Text style={styles.totalLabel}>รวมทั้งหมด</Text>
+          <Text style={styles.totalLabel}>ยอดรวมทั้งหมด</Text>
           <Text style={styles.totalValue}>{totalAmount.toLocaleString()} ฿</Text>
         </View>
         <TouchableOpacity
@@ -349,7 +433,7 @@ const CheckoutScreen = () => {
           {reserving ? (
             <ActivityIndicator color="#FFF" />
           ) : (
-            <Text style={styles.reserveButtonText}>จอง</Text>
+            <Text style={styles.reserveButtonText}>ส่งรายการจอง</Text>
           )}
         </TouchableOpacity>
       </View>

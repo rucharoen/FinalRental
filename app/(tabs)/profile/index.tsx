@@ -7,11 +7,13 @@ import {
   Image,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   Text,
   TouchableOpacity,
   View
 } from 'react-native';
 import authService from '../../../services/auth.service';
+import chatService from '../../../services/chat.service';
 import productService from '../../../services/product.service';
 import shopService from '../../../services/shop.service';
 import styles from '../../../styles/profile.styles';
@@ -77,7 +79,11 @@ export default function ProfileScreen() {
           const items = prodResponse.products || prodResponse.data || (Array.isArray(prodResponse) ? prodResponse : []);
           setProductCount(items.length);
         } catch (e) {
-          console.error('Error fetching product count:', e);
+          if (e instanceof Error && e.message === 'Unauthenticated') {
+            // Normal behavior for non-logged-in
+          } else {
+            console.error('Error fetching product count:', e);
+          }
         }
       } else {
         setShop(null);
@@ -96,18 +102,6 @@ export default function ProfileScreen() {
   };
 
   const handleOpenShop = () => {
-    // ถ้ามีข้อมูลร้านค้าอยู่แล้ว ให้แสดง Popup แจ้งเตือน
-    if (shop) {
-      Alert.alert(
-        "คุณมีร้านค้าอยู่แล้ว",
-        "ระบบอนุญาตให้เปิดร้านค้าได้เพียง 1 ร้านต่อ 1 บัญชีผู้ใช้เท่านั้น คุณสามารถสลับเป็น 'เจ้าของร้าน' ที่มุมบนขวาเพื่อจัดการร้านค้าของคุณ",
-        [
-          { text: "ตกลง", onPress: () => setMode('owner') }
-        ]
-      );
-      return;
-    }
-
     const status = getKYCStatus();
 
     // เพิ่มการตรวจสอบสถานะ "รออนุมัติ" (pending)
@@ -152,11 +146,6 @@ export default function ProfileScreen() {
   };
 
   const handleUpdateProfileImage = async () => {
-    // Only allow changing profile image in renter mode (User Profile)
-    if (mode !== 'renter') {
-      Alert.alert('แจ้งเตือน', 'กรุณาสลับเป็นโหมดผู้เช่าเพื่อแก้ไขรูปโปรไฟล์ส่วนตัว');
-      return;
-    }
 
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -169,25 +158,48 @@ export default function ProfileScreen() {
       if (!result.canceled && result.assets && result.assets.length > 0) {
         setLoading(true);
         const selectedImage = result.assets[0];
-
-        const formData = new FormData();
         const fileName = selectedImage.uri.split('/').pop() || 'profile.jpg';
         const match = /\.(\w+)$/.exec(fileName);
         const type = match ? `image/${match[1]}` : `image/jpeg`;
 
-        formData.append('profile_picture', {
-          uri: selectedImage.uri,
-          name: fileName,
-          type: type,
-        } as any);
+        if ((mode as string) === 'owner' && shop?.id) {
+          // If in owner mode, update shop image
+          const shopFormData = new FormData();
+          shopFormData.append('image', {
+            uri: selectedImage.uri,
+            name: fileName,
+            type: type,
+          } as any);
 
-        const response = await authService.updateProfileImage(formData);
-
-        if (response && !response.error) {
-          Alert.alert('สำเร็จ', 'อัปเดตรูปโปรไฟล์เรียบร้อยแล้ว');
-          await loadUserData();
+          const shopResponse = await shopService.updateShopImage(shop.id, shopFormData);
+          
+          if (shopResponse && !shopResponse.error) {
+            Alert.alert('สำเร็จ', 'อัปเดตรูปโลโกร้านค้าเรียบร้อยแล้ว');
+            await loadUserData(); // Refresh shop data
+          } else {
+            throw new Error(shopResponse?.message || 'Shop Logo upload failed');
+          }
         } else {
-          throw new Error(response?.message || 'Upload failed');
+          // Otherwise update user profile picture
+          const userFormData = new FormData();
+          userFormData.append('profile_picture', {
+            uri: selectedImage.uri,
+            name: fileName,
+            type: type,
+          } as any);
+
+          const response = await authService.updateProfileImage(userFormData);
+
+          if (response && !response.error) {
+            Alert.alert('สำเร็จ', 'อัปเดตรูปโปรไฟล์เรียบร้อยแล้ว');
+            if (response.user) {
+              setUser(response.user);
+            } else {
+              await loadUserData();
+            }
+          } else {
+            throw new Error(response?.message || 'Profile Picture upload failed');
+          }
         }
       }
     } catch (error: any) {
@@ -359,19 +371,7 @@ export default function ProfileScreen() {
   );
 
   const getImageUrl = (imagePath: string) => {
-    if (!imagePath) {
-      return 'https://via.placeholder.com/150';
-    }
-
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-
-    const baseUrl = 'https://finalrental.onrender.com';
-    // Ensure path starts with /
-    const normalizedPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-    const fullUrl = `${baseUrl}${normalizedPath}`;
-    return fullUrl;
+    return chatService.formatImageUrl(imagePath) || 'https://via.placeholder.com/150';
   };
 
   const displayData = mode === 'renter' ? {
@@ -388,6 +388,7 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <View style={styles.header}>

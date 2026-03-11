@@ -14,6 +14,7 @@ import { Ionicons, AntDesign } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Product } from '@/services/product.service';
 import cartService from '@/services/cart.service';
+import chatService from '@/services/chat.service';
 import Calendar from '@/components/Calendar';
 
 const { width, height } = Dimensions.get('window');
@@ -81,7 +82,7 @@ const SelectionModal: React.FC<SelectionModalProps> = ({ visible, onClose, produ
                   <View style={styles.productRow}>
                     <View style={styles.imageWrapper}>
                       <Image
-                        source={{ uri: product.images && product.images.length > 0 ? product.images[0] : '' }}
+                        source={{ uri: chatService.formatImageUrl(product.images && product.images.length > 0 ? product.images[0] : '') || 'https://via.placeholder.com/150' }}
                         style={styles.modalProductImage}
                         resizeMode="contain"
                       />
@@ -132,7 +133,7 @@ const SelectionModal: React.FC<SelectionModalProps> = ({ visible, onClose, produ
                       const cartItem = {
                         id: Math.random().toString(36).substr(2, 9),
                         productId: product.id,
-                        shopName: 'Shop ' + product.shop_id,
+                        shopName: product.shop_name || 'ร้านค้าทั่วไป',
                         productName: product.name,
                         image: (product.images && product.images.length > 0) ? product.images[0] : '',
                         rentPeriod: `${startDate} - ${endDate}`,

@@ -1,8 +1,33 @@
-import React from 'react';
-import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { Tabs } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { View } from 'react-native';
+import authService from '../../services/auth.service';
+import chatService from '../../services/chat.service';
 
 export default function TabLayout() {
+  const [totalUnread, setTotalUnread] = useState(0);
+
+  useEffect(() => {
+    const checkUnread = async () => {
+      try {
+        const userData = await authService.getUserData();
+        if (userData) {
+          const id = (userData.id || userData._id).toString();
+          const chats = await chatService.getChatListByUser(id);
+          if (Array.isArray(chats)) {
+            const count = chats.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
+            setTotalUnread(count);
+          }
+        }
+      } catch (e) { }
+    };
+
+    checkUnread();
+    const interval = setInterval(checkUnread, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <Tabs
       screenOptions={{
@@ -34,7 +59,26 @@ export default function TabLayout() {
         options={{
           title: 'แชท',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={24} color={color} />
+            <View>
+              <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={24} color={color} />
+              {totalUnread > 0 && (
+                <View style={{
+                  position: 'absolute',
+                  right: -6,
+                  top: -3,
+                  backgroundColor: '#E74C3C',
+                  borderRadius: 7,
+                  width: 14,
+                  height: 14,
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  borderWidth: 1.5,
+                  borderColor: '#FFFFFF'
+                }}>
+                  <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: '#FFFFFF' }} />
+                </View>
+              )}
+            </View>
           ),
         }}
       />

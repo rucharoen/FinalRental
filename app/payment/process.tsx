@@ -1,20 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import authService from '@/services/auth.service';
+import rentalService from '@/services/rental.service';
+import { styles } from '@/styles/checkout.styles';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import PaymentCountdown from '@/components/rental/PaymentCountdown';
 import {
-    View,
-    Text,
-    SafeAreaView,
-    TouchableOpacity,
-    ScrollView,
-    Image,
     ActivityIndicator,
     Alert,
-    StatusBar
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    Text,
+    TouchableOpacity,
+    View
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import rentalService from '@/services/rental.service';
-import authService from '@/services/auth.service';
-import { styles } from '@/styles/checkout.styles';
 
 const PaymentProcessScreen = () => {
     const router = useRouter();
@@ -70,10 +71,16 @@ const PaymentProcessScreen = () => {
 
         try {
             const addr = JSON.parse(userData.address);
+            const subDistrict = addr.sub_district || addr.subDistrict || '';
+            const district = addr.district || '';
+            const province = addr.province || '';
+            const postalCode = addr.postal_code || addr.postalCode || '';
+            const detail = addr.address_detail || addr.addressDetail || '';
+
             return {
                 name: addr.shipping_name || userData.full_name,
                 phone: addr.shipping_phone || userData.phone || '-',
-                detail: `${addr.address_detail} ต.${addr.sub_district} อ.${addr.district} จ.${addr.province} ${addr.postal_code}`
+                detail: `${detail} ${subDistrict ? 'ต.' + subDistrict : ''} ${district ? 'อ.' + district : ''} ${province ? 'จ.' + province : ''} ${postalCode}`.trim()
             };
         } catch (e) {
             return {
@@ -146,6 +153,14 @@ const PaymentProcessScreen = () => {
             </View>
 
             <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+                {/* Countdown Timer Alert */}
+                <View style={{ marginBottom: 15, paddingHorizontal: 5 }}>
+                    <PaymentCountdown approvedAt={rental.approved_at || rental.updated_at || rental.created_at} />
+                    <Text style={{ fontSize: 11, color: '#7F8C8D', marginTop: 4, marginLeft: 2 }}>
+                        *หากชำระไม่ทันเวลา รายการจะถูกยกเลิกอัตโนมัติ
+                    </Text>
+                </View>
+
                 {/* Address Section */}
                 <TouchableOpacity style={styles.card} onPress={() => router.push('/(tabs)/profile/address')}>
                     <View style={styles.addressHeader}>
@@ -172,10 +187,19 @@ const PaymentProcessScreen = () => {
                                 ระยะเวลาเช่า {formatDate(rental.start_date)} - {formatDate(rental.end_date)}
                             </Text>
                             <Text style={styles.pricePerDay}>
-                                {(rentalFee / (rental.days || 1)).toLocaleString()} ฿/วัน
+                                {((rentalFee / (rental.days || 1)) || 0).toLocaleString()} ฿/วัน x {rental.days || 1} วัน
                             </Text>
                         </View>
                     </View>
+                </View>
+
+                {/* Rental Fee Breakdown */}
+                <View style={styles.infoRow}>
+                    <View style={styles.infoCol}>
+                        <Text style={styles.infoLabelBold}>ค่าเช่าสำหรับ {rental.days || 1} วัน</Text>
+                        <Text style={styles.infoSubText}>({((rentalFee / (rental.days || 1)) || 0).toLocaleString()} ฿ x {rental.days || 1} วัน)</Text>
+                    </View>
+                    <Text style={styles.infoValue}>฿{rentalFee.toLocaleString()}</Text>
                 </View>
 
                 {/* Delivery Info */}

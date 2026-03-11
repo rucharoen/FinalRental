@@ -1,5 +1,5 @@
-import { apiRequest } from './api';
-import { API_ENDPOINTS } from './api';
+import * as SecureStore from 'expo-secure-store';
+import { API_ENDPOINTS, apiRequest } from './api';
 
 export interface Shop {
   id?: number;         // เปลี่ยนจาก _id: string เป็น id: number (ตาม int4)
@@ -45,9 +45,31 @@ class ShopService {
 
   async getMyShop() {
     return apiRequest(
-      `${API_ENDPOINTS.BASE_URL}/shops`, // <--- ใช้ตัวเดียวกับที่เราดูในบราวเซอร์ (ซึ่งมันผ่าน)
-      { method: 'GET', withAuth: false } // ปิด withAuth ไปก่อน เพราะในบราวเซอร์เราดูได้โดยไม่ต้องมี
+      `${API_ENDPOINTS.BASE_URL}/shops`,
+      { method: 'GET', withAuth: false }
     );
+  }
+
+  async updateShopImage(shopId: string | number, formData: FormData) {
+    const token = await SecureStore.getItemAsync('userToken');
+    const response = await fetch(`${API_ENDPOINTS.BASE_URL}/shops/${shopId}`, {
+      method: "PATCH",
+      body: formData,
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!response.ok) {
+        let errorMsg = `Upload failed: ${response.status}`;
+        try {
+            const errorData = await response.json();
+            if (errorData.message) errorMsg = errorData.message;
+        } catch (e) {}
+        throw new Error(errorMsg);
+    }
+
+    return await response.json();
   }
 }
 

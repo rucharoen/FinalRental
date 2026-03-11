@@ -26,21 +26,27 @@ export default function ShopRegistrationScreen() {
     const [initialChecking, setInitialChecking] = useState(true);
 
     React.useEffect(() => {
-        checkExistingShop();
+        checkKycStatus();
     }, []);
 
-    const checkExistingShop = async () => {
+    const checkKycStatus = async () => {
         try {
-            const shopData = await shopService.getMyShop();
-            if (shopData && !shopData.error) {
+            setInitialChecking(true);
+            const profile = await authService.getProfile();
+            const status = profile?.kyc_status || 'none';
+
+            if (status !== 'verified' && status !== 'approved') {
+                const statusText = status === 'pending' ? 'อยู่ระหว่างการตรวจสอบ' : 'ยังไม่ได้ดำเนินการ';
                 Alert.alert(
-                    'คุณมีร้านค้าอยู่แล้ว',
-                    'ระบบอนุญาตให้เปิดร้านค้าได้เพียง 1 ร้านต่อ 1 บัญชีผู้ใช้',
-                    [{ text: 'ตกลง', onPress: () => router.replace('/(tabs)/profile') }]
+                    "ยืนยันตัวตน",
+                    `สถานะปัจจุบัน: ${statusText}\nกรุณายืนยันตัวตนให้สำเร็จก่อนจึงจะสามารถเปิดร้านค้าได้`,
+                    [
+                        { text: "ตกลง", onPress: () => router.replace('/(tabs)/profile/kyc') }
+                    ]
                 );
             }
         } catch (error) {
-            // No existing shop found or error
+            console.error('Check KYC error:', error);
         } finally {
             setInitialChecking(false);
         }
@@ -63,18 +69,58 @@ export default function ShopRegistrationScreen() {
 
         setLoading(true);
         try {
-            const user = await authService.getUserData();
-            // เปลี่ยนตรงนี้ให้ตรงกับ Database
+            const profile = await authService.getProfile();
+            const status = profile?.kyc_status || 'none';
+
+            if (status === 'pending') {
+                Alert.alert(
+                    "กำลังรอการอนุมัติ",
+                    "คุณได้ทำการยืนยันตัวตนแล้ว แต่ขณะนี้อยู่ระหว่างการตรวจสอบจากแอดมิน กรุณารอให้แอดมินอนุมัติก่อนจึงจะเปิดร้านค้าได้",
+                    [{ text: "ตกลง" }]
+                );
+                setLoading(false);
+                return;
+            }
+
+            if (status !== 'verified' && status !== 'approved') {
+                Alert.alert(
+                    "ยังไม่ได้ยืนยันตัวตน",
+                    "กรุณายืนยันตัวตนให้สำเร็จก่อนจึงจะสามารถเปิดร้านค้าได้",
+                    [{ text: "ไปหน้ายืนยันตัวตน", onPress: () => router.replace('/(tabs)/profile/kyc') }]
+                );
+                setLoading(false);
+                return;
+            }
+
+            const userData = await authService.getUserData();
+            const owner_id = Number(userData.id || userData._id);
+
+            if (!owner_id) {
+                Alert.alert('ข้อผิดพลาด', 'ไม่พบรหัสผู้ใช้งาน กรุณาเข้าสู่ระบบใหม่อีกครั้ง');
+                setLoading(false);
+                return;
+            }
+
             await shopService.createShop({
-                owner_id: Number(user.id || user._id),
+                owner_id: owner_id,
                 name: shopName,
                 description: shopDescription,
             });
 
             setStep(3);
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating shop:', error);
-            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างบัญชีผู้ขายได้ กรุณาลองใหม่อีกครั้ง');
+            const errorMsg = error.message || '';
+            
+            if (errorMsg.includes('KYC')) {
+                Alert.alert(
+                    'ไม่สามารถสร้างร้านได้', 
+                    'ทางระบบส่วนกลางยังมองว่าคุณยืนยันตัวตนไม่สมบูรณ์\n\nคำแนะนำ: กรุณาลอง "ออกจากระบบ" แล้ว "เข้าสู่ระบบ" ใหม่อีกครั้ง เพื่อรีเฟรชข้อมูลล่าสุดครับ',
+                    [{ text: "ตกลง" }]
+                );
+            } else {
+                Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถสร้างบัญชีผู้ขายได้: ' + errorMsg);
+            }
         } finally {
             setLoading(false);
         }
@@ -93,11 +139,7 @@ export default function ShopRegistrationScreen() {
                 if (step > 1) {
                     setStep(step - 1);
                 } else {
-                    if (router.canGoBack()) {
-                        router.back();
-                    } else {
-                        router.replace('/(tabs)/profile');
-                    }
+                    router.push('/(tabs)/profile');
                 }
             }}>
                 <Ionicons name="chevron-back" size={28} color="#000000" />

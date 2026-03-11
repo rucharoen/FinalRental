@@ -18,6 +18,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import productService from '@/services/product.service';
+import chatService from '@/services/chat.service';
 import { styles } from '@/styles/product_management.styles';
 
 const EditProductScreen = () => {
@@ -53,14 +54,22 @@ const EditProductScreen = () => {
             setLoading(true);
             let product: any = null;
 
-            // แทนที่จะเรียก API รายตัว (ซึ่งไม่มีใน Backend) ให้ดึงจากรายการทั้งหมดของเราแทน
-            const response = await productService.getOwnProducts();
-            const products = response.products || response.data || (Array.isArray(response) ? response : []);
+            // 1. ลองดึงจาก API รายละเอียดสินค้าโดยตรงก่อน (เพื่อให้ได้ข้อมูลครบทุกรูป)
+            try {
+                product = await productService.getProductById(id as string);
+            } catch (e) {
+                console.warn('Fetch direct detail failed, falling back to list scan:', e);
+            }
 
-            product = products.find((p: any) =>
-                (p.id?.toString() === id?.toString()) ||
-                (p._id?.toString() === id?.toString())
-            );
+            // 2. ถ้าดึงตรงไม่ได้ ให้ดึงจากรายการทั้งหมด (Fallback)
+            if (!product) {
+                const response = await productService.getOwnProducts();
+                const products = response.products || response.data || (Array.isArray(response) ? response : []);
+                product = products.find((p: any) =>
+                    (p.id?.toString() === id?.toString()) ||
+                    (p._id?.toString() === id?.toString())
+                );
+            }
 
             if (product) {
                 setOriginalProduct(product);
@@ -70,24 +79,47 @@ const EditProductScreen = () => {
                 setQuantity(product.quantity?.toString() || '1');
                 setDeposit(product.deposit?.toString() || '0');
 
-                // Handle images
-                const imgData = product.images || (product as any).product_images;
-                if (imgData) {
-                    try {
-                        const parsed = typeof imgData === 'string' ? JSON.parse(imgData) : imgData;
-                        // Map local paths to full URLs for initial display
-                        const mappedImages = Array.isArray(parsed) ? parsed.map((img: string) => {
-                            if (img.startsWith('http')) return img;
-                            // Ensure one slash between base and path
-                            const path = img.startsWith('/') ? img : `/${img}`;
-                            return `https://finalrental.onrender.com${path}`;
-                        }) : [];
-                        setImages(mappedImages);
-                    } catch (e) {
-                        console.error('Image JSON parse error:', e);
-                        setImages([]);
+                // รวมรูปภาพจากทุกแหล่งที่เป็นไปได้
+                let allImagesArr: string[] = [];
+
+                const extractImages = (data: any) => {
+                    if (!data) return [];
+                    if (Array.isArray(data)) return data;
+                    if (typeof data === 'string') {
+                        const trimmed = data.trim();
+                        if (trimmed === '') return [];
+                        if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                            try { return JSON.parse(trimmed); } catch (e) { return []; }
+                        }
+                        if (trimmed.includes(',')) {
+                            return trimmed.split(',').map(s => s.trim());
+                        }
+                        return [trimmed];
                     }
-                }
+                    return [];
+                };
+
+                // รวมฟิลด์ 'image', 'images', และ 'product_images' เข้าด้วยกัน
+                const fromImage = extractImages(product.image);
+                const fromImages = extractImages(product.images);
+                const fromProductImages = extractImages(product.product_images);
+
+                const rawImages = [...fromImage, ...fromImages, ...fromProductImages];
+                
+                // กำจัดรูปที่ซ้ำและสร้าง URL ที่สมบูรณ์
+                const uniqueNormalized = Array.from(new Set(
+                    rawImages
+                        .filter(img => typeof img === 'string' && img.length > 0)
+                        .map(img => {
+                            // ถ้าเป็น URL อยู่แล้วให้ใช้เลย
+                            if (img.startsWith('http')) return img;
+                            // ใช้ตัวช่วยสร้าง URL พร้อมตรวจสอบ path
+                            return chatService.formatImageUrl(img) || '';
+                        })
+                        .filter(url => url !== '')
+                ));
+
+                setImages(uniqueNormalized);
             } else {
                 Alert.alert('ไม่พบข้อมูลสินค้า', 'ไม่พบสินค้านี้ในรายการของคุณ');
                 router.back();
@@ -126,15 +158,35 @@ const EditProductScreen = () => {
         try {
             setSaving(true);
 
-            // เนื่องจาก Backend ปัจจุบันของคุณ (updateProduct) ยังไม่รองรับการนำเข้ารูปภาพ
-            // และไม่มีคำสั่ง UPDATE images ใน SQL ของ Backend ฝั่งแก้ไข
-            // เราจึงต้องส่งแค่ข้อมูลตัวหนังสือแบบ JSON เพื่อให้ Backend รับค่าได้ถูกต้องครับ
+            // ตรวจสอบว่ามีการเพิ่มรูปใหม่ (รูปที่ยังไม่ได้อัปโหลด) หรือไม่
+            const hasNewImages = images.some(uri => uri.startsWith('file://') || uri.startsWith('content://'));
+            
+            if (hasNewImages) {
+                Alert.alert(
+                    'คำแนะนำ',
+                    'ขณะนี้ระบบแก้ไขรองรับการจัดเรียงหรือลบรูปเดิมเท่านั้น หากต้องการเพิ่มรูปใหม่ กรุณาลบสินค้าเดิมและลงประกาศใหม่ หรือรอการอัปเดตจากระบบส่วนกลางครับ (เนื่องจากเซิร์ฟเวอร์หน้าแก้ไขยังไม่รองรับการส่งไฟล์ภาพใหม่)',
+                    [{ text: 'ตกลง' }]
+                );
+                // เราจะอนุญาตให้บันทึกเฉพาะรูปเดิมที่มีอยู่แล้ว เพื่อไม่ให้ข้อมูลอื่นเสียไป
+            }
+
+            // เตรียมรายการรูปเดิมที่มีอยู่ในฐานข้อมูล (รักษาพาทให้ตรงตาม DB)
+            const cleanImages = images.map(uri => {
+                if (uri.includes('uploads/')) {
+                    // ดึงส่วนที่ต่อจากคำว่า uploads มาแล้วแปะหัวด้วย /uploads/
+                    const parts = uri.split('uploads/');
+                    return `/uploads/${parts[parts.length - 1]}`;
+                }
+                return uri; 
+            }).filter(path => !path.startsWith('file://') && !path.startsWith('content://'));
+
             const updateData = {
                 name: name.trim(),
                 description: description.trim(),
                 price_per_day: Number(price),
                 quantity: Number(quantity),
-                deposit: Number(deposit || 0)
+                deposit: Number(deposit || 0),
+                images: cleanImages // ส่งรายการรูปเดิมกลับไปเป็น Array
             };
 
             const response = await productService.updateProduct(id as string, updateData);
@@ -148,12 +200,8 @@ const EditProductScreen = () => {
             }
         } catch (error: any) {
             console.error('Update Product Error:', error);
-            // แจ้งเตือนหาก Backend ติดกติกาเรื่องค่ามัดจำ
-            if (error.message.includes('มัดจำ')) {
-                Alert.alert('แจ้งเตือนจาก Server', 'ค่ามัดจำต้องเป็นตัวเลขที่มากกว่า 0 เท่านั้นครับ (ตามกติกา Backend เดิมของคุณ)');
-            } else {
-                Alert.alert('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถอัปเดตสินค้าได้');
-            }
+            const msg = error.message === 'Update failed' ? 'ไม่สามารถอัปเดตได้ (Backend อาจขัดข้อง)' : error.message;
+            Alert.alert('เกิดข้อผิดพลาด', msg);
         } finally {
             setSaving(false);
         }
@@ -179,13 +227,11 @@ const EditProductScreen = () => {
         }
     };
 
-    const getImageUrl = (imgUri?: string) => {
-        const path = imgUri || (images && images.length > 0 ? images[0] : null);
-        if (path) {
-            if (path.startsWith('http') || path.startsWith('file://') || path.startsWith('content://')) return path;
-            return `https://finalrental.onrender.com${path.startsWith('/') ? '' : '/'}${path}`;
+    const getImageUrl = (uri: string) => {
+        if (uri.startsWith('http') || uri.startsWith('file://') || uri.startsWith('content://')) {
+            return uri;
         }
-        return 'https://via.placeholder.com/300';
+        return chatService.formatImageUrl(uri) || 'https://via.placeholder.com/300';
     };
 
     if (loading) {

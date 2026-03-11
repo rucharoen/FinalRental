@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-    View,
-    Text,
-    SafeAreaView,
-    FlatList,
-    Image,
-    TouchableOpacity,
-    ActivityIndicator,
-    Alert,
-    StatusBar
-} from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import rentalService from '@/services/rental.service';
 import { styles } from '@/styles/rental_list.styles';
+import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    SafeAreaView,
+    StatusBar,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 const OwnerRentalsScreen = () => {
     const router = useRouter();
@@ -51,13 +51,9 @@ const OwnerRentalsScreen = () => {
         const productId = (rental.product_id || rental.productId || '').toString();
         try {
             setLoading(true);
-            try {
-                // ท่าแรก: ใช้ endpoint owner-approve
-                await rentalService.approveRental(rentalId, { rentalId, status: 'approved', productId });
-            } catch (err) {
-                // ท่าสอง: ถ้าท่าแรกพัง ให้ลองใช้ endpoint status ปกติ
-                await rentalService.updateRentalStatus(rentalId, { rentalId, status: 'approved', productId });
-            }
+            // บังคับใช้ updateRentalStatus ทันที เพื่อให้ Backend ไปทำ 'case approve' ที่มีการบันทึก approved_at = NOW()
+            await rentalService.updateRentalStatus(rentalId, { rentalId, status: 'approved', productId });
+
             Alert.alert('สำเร็จ', 'อนุมัติคำขอเช่าเรียบร้อยแล้ว');
             fetchRentals();
         } catch (error: any) {
@@ -80,15 +76,12 @@ const OwnerRentalsScreen = () => {
             [
                 { text: 'ยกเลิก', style: 'cancel' },
                 {
-                    text: 'ืนยัน',
+                    text: 'ยืนยัน',
                     onPress: async () => {
                         try {
                             setLoading(true);
-                            try {
-                                await rentalService.approveRental(rentalId, { rentalId, status: 'rejected', productId });
-                            } catch (err) {
-                                await rentalService.updateRentalStatus(rentalId, { rentalId, status: 'rejected', productId });
-                            }
+                            // บังคับใช้ updateRentalStatus ทันที เพื่อความถูกต้องของข้อมูลใน Backend
+                            await rentalService.updateRentalStatus(rentalId, { rentalId, status: 'rejected', productId });
                             fetchRentals();
                         } catch (error: any) {
                             if (error.message === 'Product no longer available') {
@@ -125,19 +118,21 @@ const OwnerRentalsScreen = () => {
     };
 
     const filteredRentals = rentals.filter(item => {
-        const status = (item.status || '').toLowerCase();
+        const status = (item.status || item.rental_status || '').toLowerCase();
         if (activeTab === 'pending') {
             return status === 'pending' ||
                 status === 'pending_owner' ||
-                status === 'waiting_payment';
+                status === 'waiting_payment' ||
+                status === 'approved' ||
+                status === 'waiting_verification';
         }
         if (activeTab === 'shipping') {
-            return status === 'approved' ||
+            return status === 'paid' ||
+                status === 'verified' ||
                 status === 'preparing' ||
-                status === 'shipping' ||
-                status === 'paid';
+                status === 'shipping';
         }
-        if (activeTab === 'receiving') return status === 'delivered' || status === 'shipped';
+        if (activeTab === 'receiving') return status === 'delivered' || status === 'shipped' || status === 'received' || status === 'returning' || status === 'completed';
         return false;
     });
 
@@ -172,13 +167,25 @@ const OwnerRentalsScreen = () => {
                     <Text style={styles.priceText}>
                         ราคา {Number(item.rent_fee || 0).toLocaleString()} ฿/วัน
                     </Text>
+                    {/* Chat with Renter Button */}
+                    <TouchableOpacity
+                        style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}
+                        onPress={() => {
+                            const renterId = item.renter_id || item.renterId;
+                            router.push(`/(tabs)/chat/${renterId}`);
+                        }}
+                    >
+                        <Ionicons name="chatbubble-ellipses-outline" size={20} color="#3498DB" />
+                        <Text style={{ color: '#3498DB', marginLeft: 6, fontSize: 13, fontWeight: '500' }}>แชทกับผู้เช่า</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
+
 
             <View style={styles.actionRow}>
                 {activeTab === 'pending' && (
                     <>
-                        {(item.status === 'pending' || item.status === 'pending_owner') ? (
+                        {(item.status?.toLowerCase() === 'pending' || item.status?.toLowerCase() === 'pending_owner') ? (
                             <>
                                 <TouchableOpacity
                                     style={styles.approveButton}
@@ -193,6 +200,10 @@ const OwnerRentalsScreen = () => {
                                     <Text style={styles.buttonText}>ปฏิเสธ</Text>
                                 </TouchableOpacity>
                             </>
+                        ) : item.status?.toLowerCase() === 'waiting_verification' ? (
+                            <View style={[styles.pendingPaymentPill, { backgroundColor: '#F9E79F' }]}>
+                                <Text style={[styles.buttonText, { color: '#F39C12' }]}>รอตรวจสอบยอดเงิน</Text>
+                            </View>
                         ) : (
                             <View style={styles.pendingPaymentPill}>
                                 <Text style={styles.buttonText}>รอชำระ</Text>
@@ -212,21 +223,29 @@ const OwnerRentalsScreen = () => {
 
                 {activeTab === 'receiving' && (
                     <>
-                        <TouchableOpacity
-                            style={styles.damageButton}
-                            onPress={() => router.push({
-                                pathname: '/(tabs)/profile/shop/damage-report',
-                                params: { rentalId: item._id || item.id }
-                            })}
-                        >
-                            <Text style={styles.buttonText}>สินค้าเสียหาย</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.receiveButton}
-                            onPress={() => handleUpdateStatus(item, 'received')}
-                        >
-                            <Text style={styles.buttonText}>ยืนยันการรับ</Text>
-                        </TouchableOpacity>
+                        {(item.status?.toLowerCase() === 'completed' || item.status?.toLowerCase() === 'verified') ? (
+                            <View style={{ alignItems: 'flex-end', flex: 1, paddingRight: 5 }}>
+                                <Text style={{ color: '#2ECC71', fontSize: 14 }}>เรียบร้อย</Text>
+                            </View>
+                        ) : (
+                            <>
+                                <TouchableOpacity
+                                    style={styles.damageButton}
+                                    onPress={() => router.push({
+                                        pathname: '/(tabs)/profile/shop/damage-report',
+                                        params: { rentalId: item._id || item.id }
+                                    })}
+                                >
+                                    <Text style={styles.buttonText}>สินค้าเสียหาย</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.receiveButton, { backgroundColor: '#3498DB' }]}
+                                    onPress={() => handleUpdateStatus(item, 'verify')}
+                                >
+                                    <Text style={styles.buttonText}>ยืนยันการรับคืน</Text>
+                                </TouchableOpacity>
+                            </>
+                        )}
                     </>
                 )}
             </View>
@@ -238,7 +257,7 @@ const OwnerRentalsScreen = () => {
             <StatusBar barStyle="dark-content" />
             <View style={styles.header}>
                 <TouchableOpacity
-                    onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)/profile')}
+                    onPress={() => router.push('/(tabs)/profile')}
                     style={styles.backButton}
                 >
                     <Ionicons name="chevron-back" size={28} color="#000" />

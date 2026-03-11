@@ -278,11 +278,7 @@ export default function KYCScreen() {
                             if (step === 2) {
                                 setStep(1);
                             } else {
-                                if (router.canGoBack()) {
-                                    router.back();
-                                } else {
-                                    router.replace('/(tabs)/profile');
-                                }
+                                router.push('/(tabs)/profile');
                             }
                         }}
                     >

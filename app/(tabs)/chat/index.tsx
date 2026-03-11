@@ -6,6 +6,7 @@ import {
   FlatList,
   Image,
   SafeAreaView,
+  StatusBar,
   Text,
   TouchableOpacity,
   View
@@ -47,19 +48,32 @@ export default function ChatListScreen() {
   const formatTime = (time?: string) => {
     if (!time) return '';
     try {
+      // ตรวจสอบความถูกต้องของวันเวลา
       const date = new Date(time);
       if (isNaN(date.getTime())) return '';
-      return `${date.getHours().toString().padStart(2, '0')}.${date.getMinutes().toString().padStart(2, '0')}`;
+      
+      return date.toLocaleTimeString('th-TH', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).replace(':', '.');
     } catch (e) {
       return '';
     }
   };
 
   const renderChatItem = ({ item }: { item: Chat }) => {
-    // ระบุตัวตนของอีกฝ่ายในแชท
-    const otherId = item.userId.toString() === userId ? item.otherUserId : item.userId;
-    const isUnread = (item.unreadCount ?? 0) > 0;
-    const navigationId = item.chatId || otherId;
+    const otherId = (item as any).otherUserId;
+    
+    // ตรวจสอบสถานะการอ่าน
+    const unreadCount = item.unreadCount || (item as any).unread_count || 0;
+    const lastIsRead = item.lastIsRead !== undefined ? item.lastIsRead : (item as any).is_read;
+    const lastSenderId = item.lastSenderId || (item as any).last_sender_id;
+    
+    // แสดงจุดแดงถ้า: มีจำนวนข้อความค้างอยู่ หรือ (ข้อความล่าสุดยังไม่อ่าน และเราไม่ใช่คนส่ง)
+    const isUnread = unreadCount > 0 || (lastIsRead === false && lastSenderId?.toString() !== userId);
+    
+    const navigationId = item.room_id || item.chatId || otherId;
 
     return (
       <TouchableOpacity
@@ -68,7 +82,10 @@ export default function ChatListScreen() {
       >
         <View style={styles.avatarContainer}>
           <Image
-            source={{ uri: item.otherUserAvatar || 'https://picsum.photos/seed/' + otherId + '/100/100' }}
+            source={{
+              uri: chatService.formatImageUrl((item as any).otherUserAvatar) ||
+                'https://api.dicebear.com/7.x/avataaars/svg?seed=' + otherId
+            }}
             style={styles.avatar}
           />
           {isUnread && <View style={styles.unreadBadge} />}
@@ -76,16 +93,18 @@ export default function ChatListScreen() {
         <View style={styles.chatContent}>
           <View style={styles.chatHeader}>
             <Text style={[styles.shopName, isUnread && styles.unreadText]}>
-              {item.otherUserName || `ผู้ใช้ ${otherId.toString().substring(0, 8)}`}
+              {(item as any).otherUserName || `ผู้ใช้ ${otherId}`}
             </Text>
-            <Text style={[styles.timeText, isUnread && styles.unreadTime]}>{formatTime(item.lastMessageTime)}</Text>
+            <Text style={[styles.timeText, isUnread && styles.unreadTime]}>{formatTime((item as any).lastMessageTime)}</Text>
           </View>
           <View style={styles.lastMessageRow}>
             <Text
               style={[styles.lastMessage, isUnread && styles.unreadMessage]}
               numberOfLines={1}
             >
-              {item.lastMessage || 'เริ่มต้นการสนทนาได้เลย'}
+              {isUnread
+                ? `${item.unreadCount || 1} ข้อความใหม่`
+                : ((item as any).lastMessage || 'เริ่มต้นการสนทนาได้เลย')}
             </Text>
             {isUnread && (
               <View style={styles.countBadge}>
@@ -100,6 +119,7 @@ export default function ChatListScreen() {
   };
 
 
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -110,6 +130,7 @@ export default function ChatListScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>ข้อความ</Text>

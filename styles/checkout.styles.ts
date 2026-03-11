@@ -134,6 +134,16 @@ export const styles = StyleSheet.create({
         fontWeight: '500',
         color: '#000',
     },
+    infoRowSmall: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    infoValueSmall: {
+        fontSize: 14,
+        color: '#333',
+    },
     paymentSection: {
         backgroundColor: '#FFFFFF',
         padding: 15,

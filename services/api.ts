@@ -2,6 +2,9 @@ import * as SecureStore from 'expo-secure-store';
 
 export const API_BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'https://finalrental.onrender.com/api';
 export const RENTAL_BASE_URL = process.env.EXPO_PUBLIC_RENTAL_BASE_URL || 'https://finalrental.onrender.com';
+// เพิ่ม URL สำหรับ Supabase Storage
+export const SUPABASE_STORAGE_URL = 'https://pongnakornts.supabase.co/storage/v1/object/public/avatars';
+
 
 export interface FetchOptions extends RequestInit {
   withAuth?: boolean;
@@ -23,6 +26,10 @@ export const apiRequest = async <T = any>(
       const token = await SecureStore.getItemAsync('userToken');
       if (token) {
         requestHeaders['Authorization'] = `Bearer ${token}`;
+      } else {
+        // หากต้องการการยืนยันตัวตนแต่ไม่มี Token ให้แจ้งล่วงหน้า
+        console.warn(`[AUTH] Token required but not found for: ${url}`);
+        throw new Error('Unauthenticated');
       }
     }
 
@@ -59,7 +66,11 @@ export const apiRequest = async <T = any>(
     const data = await response.json();
     return data;
   } catch (error) {
-    console.error(`[FETCH ERROR] ${url}`, error);
+    if (error instanceof Error && error.message === 'Unauthenticated') {
+      // ไม่ต้อง log เป็น error ล่วงหน้าสำหรับกรณีที่ยังไม่ได้เข้าสู่ระบบ
+    } else {
+      console.error(`[FETCH ERROR] ${url}`, error);
+    }
     throw error;
   }
 };
@@ -68,6 +79,8 @@ export const API_ENDPOINTS = {
   // BASE URLs
   BASE_URL: API_BASE_URL,
   RENTAL_BASE_URL,
+  SUPABASE_STORAGE_URL,
+
 
   // AUTH
   AUTH_REGISTER: process.env.EXPO_PUBLIC_AUTH_REGISTER || '/auth/register',
@@ -90,6 +103,8 @@ export const API_ENDPOINTS = {
   CHAT_HISTORY: process.env.EXPO_PUBLIC_CHAT_HISTORY || '/chat/history/{CHAT_ID}',
   CHAT_LIST_BY_USER: process.env.EXPO_PUBLIC_CHAT_LIST_BY_USER || '/chat/list/{USER_ID}',
   CHAT_BOOKING_SUMMARY: process.env.EXPO_PUBLIC_CHAT_BOOKING_SUMMARY || '/chat/summary/{CHAT_ID}',
+  CHAT_UPLOAD_IMAGE: '/chat/upload-image',
+  CHAT_MARK_READ: '/chat/mark-read',
 
   // AUTO / INTERVAL
   AUTO_REFUND_TRIGGER: process.env.EXPO_PUBLIC_AUTO_REFUND_TRIGGER || '/interval/trigger',
@@ -119,6 +134,8 @@ export const API_ENDPOINTS = {
   UPDATE_RENTAL_STATUS: process.env.EXPO_PUBLIC_UPDATE_RENTAL_STATUS || '/rentals/{RENTAL_ID}/status',
   GET_OWNER_RENTALS: '/rentals/owner',
   REPORT_DAMAGE: '/rentals/{RENTAL_ID}/damage-report',
+  GET_RENTAL_BY_ID: '/rentals/{RENTAL_ID}',
+
 
   // WALLET
   GET_WALLET_BALANCE: process.env.EXPO_PUBLIC_GET_WALLET_BALANCE || '/rentals/wallet/balance',
@@ -128,5 +145,10 @@ export const API_ENDPOINTS = {
   ADDRESS_UPDATE: '/address/update',
 
   // FORGOT PASSWORD
-  AUTH_FORGOT_PASSWORD_REQUEST: '/auth/forgot-password-request',
+  AUTH_VERIFY_RESET_USER: '/auth/verify-reset-user',
+  AUTH_RESET_PASSWORD: '/auth/reset-password',
+
+  // USER INFO
+  CHAT_USER_INFO: '/auth/user/{USER_ID}',
 };
+

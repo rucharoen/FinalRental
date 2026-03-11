@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -14,7 +14,9 @@ import {
     Platform
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import authService from '@/services/auth.service';
+import chatService from '@/services/chat.service';
 import walletService from '@/services/wallet.service';
 import { styles } from '@/styles/wallet.styles';
 
@@ -33,9 +35,30 @@ const WalletScreen = () => {
     const [showConfirmModal, setShowConfirmModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
 
-    useEffect(() => {
-        fetchBalance();
-    }, []);
+    const [user, setUser] = useState<any>(null);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchBalance();
+            loadUserInfo();
+        }, [])
+    );
+
+    const loadUserInfo = async () => {
+        try {
+            const userData = await authService.getUserData();
+            if (userData) {
+                setUser(userData);
+            }
+            // Fetch fresh profile to get latest image
+            const profile = await authService.getProfile();
+            if (profile) {
+                setUser(profile);
+            }
+        } catch (error) {
+            console.error('Error loading user info:', error);
+        }
+    };
 
     const fetchBalance = async () => {
         try {
@@ -107,18 +130,54 @@ const WalletScreen = () => {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" />
 
-            {/* Header with Logo */}
-            <View style={styles.headerLogoContainer}>
-                <Image source={require('@/assets/images/logo.png')} style={styles.logo} />
+            {/* Header with Back Button and Profile Image */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10 }}>
+                <TouchableOpacity
+                    onPress={() => {
+                        if (isWithdrawMode) {
+                            setIsWithdrawMode(false);
+                        } else {
+                            router.back();
+                        }
+                    }}
+                    style={{ padding: 5 }}
+                >
+                    <Ionicons name="chevron-back" size={28} color="#333" />
+                </TouchableOpacity>
+                <View style={{ flex: 1, alignItems: 'center', marginRight: 40 }}>
+                    <View style={{
+                        width: 90,
+                        height: 90,
+                        borderRadius: 45,
+                        backgroundColor: '#FFF',
+                        padding: 2,
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 5,
+                        elevation: 3
+                    }}>
+                        <Image 
+                            source={{ 
+                                uri: (user?.profile_picture ? chatService.formatImageUrl(user.profile_picture) : null) || 'https://via.placeholder.com/150' 
+                            }} 
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                borderRadius: 45,
+                            }} 
+                        />
+                    </View>
+                </View>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 30 }}>
                 <Text style={styles.headerTitle}>
                     {isWithdrawMode ? 'จำนวนที่ต้องการถอน' : 'ถอนเงิน'}
                 </Text>
 
                 {/* Balance Card */}
-                <View style={[styles.balanceCard, isWithdrawMode && { backgroundColor: '#34495E' }]}>
+                <View style={styles.balanceCard}>
                     <Text style={styles.balanceLabel}>ยอดเงินคงเหลือที่ใช้ได้</Text>
                     <Text style={styles.balanceAmount}>{balance.toLocaleString()} บาท</Text>
                     <Text style={styles.balanceFooter}>สามารถถอนเงินได้</Text>
@@ -126,73 +185,84 @@ const WalletScreen = () => {
 
                 {isWithdrawMode ? (
                     /* Withdraw Form */
-                    <View style={styles.formContainer}>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>จำนวนที่ต้องการถอน</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="0 บาท"
-                                placeholderTextColor="#BDC3C7"
-                                keyboardType="numeric"
-                                value={withdrawAmount}
-                                onChangeText={setWithdrawAmount}
-                            />
+                    <>
+                        <View style={styles.formContainer}>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>จำนวนที่ต้องการถอน</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="0 บาท"
+                                    placeholderTextColor="#BDC3C7"
+                                    keyboardType="numeric"
+                                    value={withdrawAmount}
+                                    onChangeText={setWithdrawAmount}
+                                />
+                            </View>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>เลขบัญชีธนาคาร</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="กรอกเลขบัญชี"
+                                    placeholderTextColor="#BDC3C7"
+                                    keyboardType="numeric"
+                                    value={accountNumber}
+                                    onChangeText={setAccountNumber}
+                                />
+                            </View>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>ชื่อบัญชี</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="กรอกชื่อบัญชี"
+                                    placeholderTextColor="#BDC3C7"
+                                    value={accountName}
+                                    onChangeText={setAccountName}
+                                />
+                            </View>
                         </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>เลขบัญชีธนาคาร</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="กรอกเลขบัญชี"
-                                placeholderTextColor="#BDC3C7"
-                                keyboardType="numeric"
-                                value={accountNumber}
-                                onChangeText={setAccountNumber}
-                            />
-                        </View>
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>ชื่อบัญชี</Text>
-                            <TextInput
-                                style={styles.input}
-                                placeholder="กรอกชื่อบัญชี"
-                                placeholderTextColor="#BDC3C7"
-                                value={accountName}
-                                onChangeText={setAccountName}
-                            />
-                        </View>
-                    </View>
-                ) : (
-                    /* History Section */
-                    <View style={styles.historySection}>
-                        <Text style={styles.sectionTitle}>ประวัติทำการธุรกรรม</Text>
+                        
                         <TouchableOpacity
-                            style={styles.historyItem}
-                            onPress={() => router.push('/(tabs)/wallet/history')}
+                            style={[styles.actionButton, loading && { opacity: 0.7 }]}
+                            onPress={handleWithdrawPress}
+                            disabled={loading}
                         >
-                            <View style={styles.historyIconContainer}>
-                                <MaterialCommunityIcons name="bank-transfer" size={24} color="#000" />
-                            </View>
-                            <View style={styles.historyContent}>
-                                <Text style={styles.historyTitle}>ประวัติการทำธุรกรรม</Text>
-                                <Text style={styles.historySubTitle}>ดูรายการเงิน เข้า/ออก ย้อนหลัง</Text>
-                            </View>
-                            <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
+                            {loading ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.actionButtonText}>ถอนเงิน</Text>
+                            )}
                         </TouchableOpacity>
-                    </View>
+                    </>
+                ) : (
+                    /* Main View */
+                    <>
+                        <TouchableOpacity
+                            style={[styles.actionButton, { marginTop: 0 }]}
+                            onPress={() => setIsWithdrawMode(true)}
+                        >
+                            <Text style={styles.actionButtonText}>ถอนเงิน</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.historySection}>
+                            <Text style={styles.sectionTitle}>ประวัติทำการธุรกรรม</Text>
+                            <TouchableOpacity
+                                style={styles.historyItem}
+                                onPress={() => router.push('/(tabs)/wallet/history')}
+                            >
+                                <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
+                                    <View style={styles.historyIconContainer}>
+                                        <Ionicons name="wallet-outline" size={24} color="#000" />
+                                    </View>
+                                    <View style={styles.historyContent}>
+                                        <Text style={styles.historyTitle}>ประวัติการทำธุรกรรม</Text>
+                                        <Text style={styles.historySubTitle}>ดูรายการเงิน เข้า/ออก ย้อนหลัง</Text>
+                                    </View>
+                                </View>
+                                <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
+                            </TouchableOpacity>
+                        </View>
+                    </>
                 )}
-
-                {/* Withdraw Button */}
-                <TouchableOpacity
-                    style={[styles.actionButton, loading && { opacity: 0.7 }]}
-                    onPress={handleWithdrawPress}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <Text style={styles.actionButtonText}>ถอนเงิน</Text>
-                    )}
-                </TouchableOpacity>
-
             </ScrollView>
 
             {/* Confirmation Modal */}
@@ -232,7 +302,7 @@ const WalletScreen = () => {
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
-                        <Ionicons name="checkmark-circle-outline" size={80} color="#2ECC71" />
+                        <Ionicons name="checkmark-circle" size={80} color="#27AE60" />
                         <Text style={styles.successTitle}>เสร็จสิ้น</Text>
 
                         <TouchableOpacity
@@ -245,15 +315,6 @@ const WalletScreen = () => {
                 </View>
             </Modal>
 
-            {/* Back Arrow for Withdraw Mode */}
-            {isWithdrawMode && (
-                <TouchableOpacity
-                    style={{ position: 'absolute', top: 50, left: 16 }}
-                    onPress={() => setIsWithdrawMode(false)}
-                >
-                    <Ionicons name="chevron-back" size={28} color="#000" />
-                </TouchableOpacity>
-            )}
         </SafeAreaView>
     );
 };

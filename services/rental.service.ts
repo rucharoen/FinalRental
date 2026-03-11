@@ -1,6 +1,5 @@
-import { apiRequest } from './api';
-import { API_ENDPOINTS } from './api';
 import * as SecureStore from 'expo-secure-store';
+import { API_ENDPOINTS, apiRequest } from './api';
 
 export interface Booking {
   id?: number;
@@ -95,18 +94,28 @@ class RentalService {
   }
 
   async updateRentalStatus(rentalId: string, update: RentalStatusUpdate) {
+    // 💡 พิเศษ: ถ้าเป็นการอนุมัติ ให้วิ่งไปหา approveRental แทน เพราะ Backend แยก endpoint ไว้เฉพาะ
+    if (update.status === 'approved') {
+      return this.approveRental(rentalId, {
+        rentalId,
+        status: 'approved',
+        productId: update.productId
+      });
+    }
+
     const url = API_ENDPOINTS.UPDATE_RENTAL_STATUS.replace('{RENTAL_ID}', rentalId);
     const numericRentalId = parseInt(rentalId);
 
     // ปรับ action ให้ตรงตาม switch-case ของ Backend เป๊ะๆ
     let action = '';
-    if (update.status === 'approved') action = 'approve';
+    if (update.status === 'rejected') action = 'reject';
     else if (update.status === 'paid') action = 'pay';
     else if (update.status === 'shipped' || update.status === 'delivered') action = 'ship';
-    else if (update.status === 'received' || update.status === 'completed') action = 'receive';
-    else if (update.status === 'returned') action = 'return';
-    else if (update.status === 'verified') action = 'verify';
+    else if (update.status === 'received') action = 'receive';
+    else if (update.status === 'return' || update.status === 'returning') action = 'return';
+    else if (update.status === 'verify' || update.status === 'verified' || update.status === 'completed') action = 'verify';
     else action = update.status;
+
 
     const payload: any = {
       action: action,
@@ -115,6 +124,8 @@ class RentalService {
       // เพิ่มฟิลด์ที่ Backend SHIP/RECEIVE เรียกหา
       outbound_shipping_company: update.outbound_shipping_company || 'Flash Express',
       outbound_tracking_number: update.outbound_tracking_number || `TH${Date.now()}`,
+      inbound_shipping_company: (update as any).inbound_shipping_company || 'Flash Express',
+      inbound_tracking_number: (update as any).inbound_tracking_number || `RT${Date.now()}`,
       proof_url: update.proof_url || 'https://via.placeholder.com/300'
     };
 
@@ -145,6 +156,18 @@ class RentalService {
     return [];
   }
 
+  async getRentalById(rentalId: string) {
+    const url = API_ENDPOINTS.GET_RENTAL_BY_ID.replace('{RENTAL_ID}', rentalId);
+    const response = await apiRequest<any>(
+      `${API_ENDPOINTS.BASE_URL}${url}`,
+      {
+        method: 'GET',
+        withAuth: true,
+      }
+    );
+    return response?.success ? response.data : response;
+  }
+
   async reportDamage(rentalId: string, formData: FormData) {
     const url = API_ENDPOINTS.REPORT_DAMAGE.replace('{RENTAL_ID}', rentalId);
     const token = await SecureStore.getItemAsync('userToken');
@@ -159,6 +182,18 @@ class RentalService {
       if (!res.ok) throw new Error('Failed to report damage');
       return res.json();
     });
+  }
+
+  async adminVerifyPayment(rentalId: string, approve: boolean) {
+    const url = API_ENDPOINTS.ADMIN_CONFIRM_PAYMENT.replace('{PAYMENT_ID}', rentalId);
+    return apiRequest(
+      `${API_ENDPOINTS.BASE_URL}${url}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ approve }),
+        withAuth: true,
+      }
+    );
   }
 }
 

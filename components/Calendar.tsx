@@ -1,12 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
-  View,
+  Dimensions,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Dimensions
+  View
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 
 const { width } = Dimensions.get('window');
 
@@ -83,27 +83,37 @@ const Calendar: React.FC<CalendarProps> = ({ onSelectRange, onClose }) => {
       setStartDate(day);
       setEndDate(null);
     } else if (startDate && !endDate) {
-      if (day < startDate) {
+      if (day < startDate && currentDate.getTime() <= new Date().getTime()) {
+        // If selecting a previous day in the current month, treat as new start
         setStartDate(day);
         setEndDate(null);
       } else if (day === startDate) {
         setStartDate(null);
       } else {
         setEndDate(day);
-        // Automatically confirm selection once both are selected
-        const startStr = `${startDate} ${monthNames[currentDate.getMonth()]}`;
-        const endStr = `${day} ${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear() + 543}`;
+        const yearThai = currentDate.getFullYear() + 543;
+        const monthThai = monthNames[currentDate.getMonth()];
+        const startStr = `${startDate} ${monthThai} ${yearThai}`;
+        const endStr = `${day} ${monthThai} ${yearThai}`;
         onSelectRange(startStr, endStr);
       }
     }
+  };
+
+  const changeMonth = (offset: number) => {
+    const newDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1);
+    setCurrentDate(newDate);
   };
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.monthTitle}>{monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}</Text>
-        <TouchableOpacity style={styles.nextButton}>
+        <TouchableOpacity style={styles.prevButton} onPress={() => changeMonth(-1)}>
+          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={styles.monthTitle}>{monthNames[currentDate.getMonth()]} {currentDate.getFullYear() + 543}</Text>
+        <TouchableOpacity style={styles.nextButton} onPress={() => changeMonth(1)}>
           <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -174,6 +184,11 @@ const styles = StyleSheet.create({
   nextButton: {
     position: 'absolute',
     right: 15,
+    top: 15,
+  },
+  prevButton: {
+    position: 'absolute',
+    left: 15,
     top: 15,
   },
   headerWeekDaysRow: {

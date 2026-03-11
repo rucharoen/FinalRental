@@ -186,11 +186,7 @@ export default function AddressScreen() {
                 Alert.alert('สำเร็จ', 'บันทึกที่อยู่เรียบร้อยแล้ว', [
                     {
                         text: 'ตกลง', onPress: () => {
-                            if (router.canGoBack()) {
-                                router.back();
-                            } else {
-                                router.replace('/(tabs)/profile');
-                            }
+                            router.replace('/(tabs)/profile');
                         }
                     }
                 ]);
@@ -218,13 +214,7 @@ export default function AddressScreen() {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" />
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => {
-                    if (router.canGoBack()) {
-                        router.back();
-                    } else {
-                        router.replace('/(tabs)/profile');
-                    }
-                }} style={styles.backButton}>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.backButton}>
                     <Feather name="chevron-left" size={32} color={COLORS.black} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>ที่อยู่ใหม่</Text>

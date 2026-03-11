@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
 import {
-    View,
+    ActivityIndicator,
+    Alert,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
     Text,
     TouchableOpacity,
-    Image,
-    ScrollView,
-    SafeAreaView,
-    StatusBar,
-    ActivityIndicator
+    View
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import styles from '../../../styles/bookings.styles';
-import rentalService from '../../../services/rental.service';
 import authService from '../../../services/auth.service';
+import rentalService from '../../../services/rental.service';
+import PaymentCountdown from '../../../components/rental/PaymentCountdown';
+import styles from '../../../styles/bookings.styles';
 
 export default function BookingsScreen() {
     const router = useRouter();
@@ -46,9 +48,11 @@ export default function BookingsScreen() {
         { id: 'receive', label: 'ที่ต้องได้รับ' },
     ];
 
-    useEffect(() => {
-        loadRentals();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadRentals();
+        }, [])
+    );
 
     const loadRentals = async () => {
         try {
@@ -56,10 +60,11 @@ export default function BookingsScreen() {
             const user = await authService.getUserData();
             if (user && (user.id || user._id)) {
                 const data = await rentalService.getUserRentals();
+                console.log('Fetched Rentals:', data); // Add logging to debug status issues
                 setRentals(Array.isArray(data) ? data : []);
             }
         } catch (error) {
-            // Error handling
+            console.error('Load Rentals Error:', error);
         } finally {
             setLoading(false);
         }
@@ -67,19 +72,24 @@ export default function BookingsScreen() {
 
     const getFilteredData = () => {
         return rentals.filter(r => {
-            const status = (r.status || '').toLowerCase();
+            const status = (r.status || r.rental_status || '').toLowerCase();
             switch (activeTab) {
                 case 'pending':
-                    return status === 'pending' || status === 'pending_owner';
+                    return status === 'pending' ||
+                        status === 'pending_owner' ||
+                        status === 'waiting_verification' ||
+                        status === 'waiting_admin_verify';
                 case 'payment':
                     return status === 'approved' ||
-                        status === 'waiting_payment' ||
-                        status === 'waiting_verification';
+                        status === 'waiting_payment';
                 case 'receive':
-                    return status === 'paid' ||
-                        status === 'shipped' ||
+                    return status === 'shipped' ||
                         status === 'received' ||
-                        status === 'delivered';
+                        status === 'delivered' ||
+                        status === 'paid' ||
+                        status === 'verified' ||
+                        status === 'returning' ||
+                        status === 'completed';
                 default:
                     return false;
             }
@@ -132,50 +142,139 @@ export default function BookingsScreen() {
                         <Text style={[styles.priceText, { color: '#E74C3C', fontSize: 16, marginTop: 4 }]}>
                             {pricePerDay.toLocaleString()} ฿/วัน
                         </Text>
-                        <Text style={[styles.warningText, { color: '#E74C3C', fontSize: 11 }]}>
-                            *กรุณาส่งสินค้าคืนภายในวันที่ {returnDateStr}
+                        <TouchableOpacity
+                            style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}
+                            onPress={() => {
+                                const ownerId = item.owner_id || item.ownerId;
+                                router.push(`/(tabs)/chat/${ownerId}`);
+                            }}
+                        >
+                            <Ionicons name="chatbubble-ellipses-outline" size={18} color="#3498DB" />
+                            <Text style={{ color: '#3498DB', marginLeft: 6, fontSize: 12, fontWeight: '500' }}>แชทกับเจ้าของร้าน</Text>
+                        </TouchableOpacity>
+                        <Text style={[
+                            styles.warningText,
+
+                            {
+                                color: ((item.status?.toLowerCase() === 'received') && new Date() > returnDate) ? '#E74C3C' : '#E67E22',
+                                fontSize: 11
+                            }
+                        ]}>
+                            {((item.status?.toLowerCase() === 'received') && new Date() > returnDate) ? (
+                                `*ล่าช้ากว่ากำหนด ปรับ 1.5 เท่าจากมัดจำ`
+                            ) : (
+                                `*กรุณาส่งสินค้าคืนภายในวันที่ ${returnDateStr}`
+                            )}
                         </Text>
                     </View>
                 </View>
 
                 <View style={styles.actionSection}>
-                    {(item.status === 'pending' || item.status === 'pending_owner') && (
+                    {/* 1. สถานะ รออนุมัติ */}
+                    {(item.status?.toLowerCase() === 'pending' || item.status?.toLowerCase() === 'pending_owner') && (
                         <View style={[styles.actionButton, { backgroundColor: '#AED6F1' }]}>
                             <Text style={[styles.buttonText, { color: '#3498DB' }]}>รออนุมัติ</Text>
                         </View>
                     )}
 
-                    {item.status === 'waiting_verification' && (
+                    {/* 2. สถานะ รอตรวจสอบสลิป */}
+                    {(item.status?.toLowerCase() === 'waiting_verification' || item.status?.toLowerCase() === 'waiting_admin_verify') && (
                         <View style={[styles.actionButton, { backgroundColor: '#F9E79F' }]}>
                             <Text style={[styles.buttonText, { color: '#F39C12' }]}>รอตรวจสอบ</Text>
                         </View>
                     )}
 
-                    {(item.status === 'approved' || item.status === 'waiting_payment') && (
-                        <TouchableOpacity
-                            style={styles.actionButton}
-                            onPress={() => router.push({
-                                pathname: '/payment/process',
-                                params: { rentalId: item.id }
-                            })}
-                        >
-                            <Text style={styles.buttonText}>ชำระเงิน</Text>
-                        </TouchableOpacity>
+                    {/* 3. สถานะ รอชำระเงิน */}
+                    {(item.status?.toLowerCase() === 'approved' || item.status?.toLowerCase() === 'waiting_payment') && (activeTab === 'payment') && (() => {
+                        const approvedAt = item.approved_at || item.updated_at || item.created_at;
+                        const isExpired = approvedAt ? (new Date().getTime() - new Date(approvedAt).getTime()) > 24 * 60 * 60 * 1000 : false;
+                        
+                        return (
+                            <View style={{ alignItems: 'flex-end' }}>
+                                <PaymentCountdown 
+                                    approvedAt={approvedAt} 
+                                />
+                                <TouchableOpacity
+                                    style={[
+                                        styles.actionButton, 
+                                        { marginTop: 10 },
+                                        isExpired && { backgroundColor: '#BDC3C7' }
+                                    ]}
+                                    onPress={() => {
+                                        if (isExpired) {
+                                            Alert.alert(
+                                                'หมดเวลาชำระเงิน', 
+                                                'รายการนี้หมดระยะเวลาชำระเงิน (24 ชม.) แล้ว ระบบได้ทำการคืนสต็อกสินค้าเรียบร้อยแล้ว หากยังต้องการเช่ากรุณาทำรายการใหม่อีกครั้ง',
+                                                [{ text: 'ตกลง' }]
+                                            );
+                                            return;
+                                        }
+                                        router.push({
+                                            pathname: '/payment/process',
+                                            params: { rentalId: item.id }
+                                        })
+                                    }}
+                                >
+                                    <Text style={styles.buttonText}>{isExpired ? 'หมดอายุ' : 'ชำระเงิน'}</Text>
+                                </TouchableOpacity>
+                            </View>
+                        );
+                    })()}
+
+                    {/* 4. สถานะ ชำระแล้ว/กำลังจัดส่ง */}
+                    {(item.status?.toLowerCase() === 'paid' || item.status?.toLowerCase() === 'verified') && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={{ color: '#F39C12', fontSize: 13, marginBottom: 5 }}>รอร้านค้าจัดส่ง</Text>
+                        </View>
                     )}
 
-                    {(item.status === 'paid' || item.status === 'shipped') && (
-                        <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#2ECC71' }]}>
-                            <Text style={styles.buttonText}>ยืนยันรับสินค้า</Text>
-                        </TouchableOpacity>
+                    {/* 5. สถานะ จัดส่งแล้ว -> ปุ่ม ยืนยันการรับสินค้า */}
+                    {(item.status?.toLowerCase() === 'shipped' || item.status?.toLowerCase() === 'delivered') && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={{ color: '#F39C12', fontSize: 13, marginBottom: 5 }}>รอรับสินค้า</Text>
+                            <TouchableOpacity
+                                style={styles.actionButton}
+                                onPress={() => router.push({
+                                    pathname: '/evidence/record',
+                                    params: { rentalId: item.id, action: 'receive' }
+                                })}
+                            >
+                                <Text style={styles.buttonText}>ยืนยันการรับสินค้า</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* 6. สถานะ รับของแล้ว -> ปุ่ม ยืนยันการส่งคืน */}
+                    {(item.status?.toLowerCase() === 'received') && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={{ color: '#2ECC71', fontSize: 13, marginBottom: 5 }}>รอส่งคืน</Text>
+                            <TouchableOpacity
+                                style={styles.actionButton}
+                                onPress={() => router.push({
+                                    pathname: '/evidence/record',
+                                    params: { rentalId: item.id, action: 'return' }
+                                })}
+                            >
+                                <Text style={styles.buttonText}>ยืนยันการส่งคืน</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {/* 7. สถานะ คืนสำเร็จ / จบรายการ */}
+                    {(item.status?.toLowerCase() === 'returning' || item.status?.toLowerCase() === 'completed') && (
+                        <View style={{ alignItems: 'flex-end' }}>
+                            <Text style={{ color: '#2ECC71', fontSize: 13, fontWeight: '600' }}>ส่งคืนเรียบร้อย</Text>
+                        </View>
                     )}
                 </View>
+
             </View>
         );
     };
 
     return (
         <SafeAreaView style={styles.container}>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backButton} onPress={() => router.push('/(tabs)/profile')}>

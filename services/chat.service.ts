@@ -1,105 +1,181 @@
 import { API_ENDPOINTS, apiRequest } from './api';
 
-export interface ChatMessage {
-  _id?: string;
-  chatId?: string;
-  room_id?: string;
-  senderId?: string;
-  sender_id?: string;
+export interface Message {
+  id: number;
+  room_id: string;
+  sender_id: number | string;
   message: string;
-  timestamp?: string;
   created_at?: string;
+  full_name?: string;
+  profile_picture?: string;
+}
+
+export interface ChatMessage extends Message {
+  timestamp?: string;
+  senderId?: string | number;
+  chatId?: string;
+  _id?: string;
 }
 
 export interface Chat {
   _id?: string;
-  chatId: string;
-  userId: string;
-  otherUserId: string;
+  userId: number | string;
+  otherUserId: number | string;
   otherUserName?: string;
   otherUserAvatar?: string;
   lastMessage?: string;
   lastMessageTime?: string;
   unreadCount?: number;
-  messages?: ChatMessage[];
+  chatId?: string;
+  room_id?: string;
+  lastIsRead?: boolean;
+  lastSenderId?: string | number;
 }
 
 class ChatService {
+  // 1. ส่งข้อความใหม่
   async sendMessage(data: any) {
-    const payload = {
-      room_id: data.chatId || data.room_id || data.chat_id,
-      sender_id: data.senderId || data.sender_id,
-      message: data.message
-    };
-    return apiRequest(
-      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CHAT_SEND_MESSAGE}`,
-      {
+    try {
+      const url = `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CHAT_SEND_MESSAGE}`;
+      return await apiRequest(url, {
         method: 'POST',
-        body: JSON.stringify(payload),
-        withAuth: true,
-      }
-    );
+        body: JSON.stringify({
+          room_id: data.room_id || data.chat_id || data.chatId,
+          sender_id: data.sender_id || data.senderId,
+          message: data.message,
+          image_url: data.image_url
+        }),
+      });
+    } catch (error) {
+
+      console.error('Error sending message:', error);
+      throw error;
+    }
   }
 
-  async getChatHistory(chatId: string) {
-    const url = API_ENDPOINTS.CHAT_HISTORY.replace('{CHAT_ID}', chatId);
-    const response = await apiRequest<any>(
-      `${API_ENDPOINTS.BASE_URL}${url}`,
-      {
+  // 🆕 ทำเครื่องหมายว่าอ่านแล้ว
+  async markAsRead(roomId: string, userId: string | number) {
+    try {
+      const url = `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CHAT_MARK_READ}`;
+      return await apiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          room_id: roomId,
+          userId: userId.toString()
+        }),
+      });
+    } catch (error) {
+      console.error('Error marking as read:', error);
+      return { success: false };
+    }
+  }
+
+  // 🆕 อัปโหลดรูปภาพ
+  async uploadImage(imageUri: string) {
+    try {
+      const baseUrl = API_ENDPOINTS.BASE_URL.endsWith('/')
+        ? API_ENDPOINTS.BASE_URL.slice(0, -1)
+        : API_ENDPOINTS.BASE_URL;
+
+      const endpoint = API_ENDPOINTS.CHAT_UPLOAD_IMAGE.startsWith('/')
+        ? API_ENDPOINTS.CHAT_UPLOAD_IMAGE
+        : `/${API_ENDPOINTS.CHAT_UPLOAD_IMAGE}`;
+
+      const url = `${baseUrl}${endpoint}`;
+
+      const formData = new FormData();
+      const filename = imageUri.split('/').pop();
+      const match = /\.(\w+)$/.exec(filename || '');
+      const type = match ? `image/${match[1]}` : `image`;
+
+      formData.append('image', {
+        uri: imageUri,
+        name: filename,
+        type,
+      } as any);
+
+      return await apiRequest(url, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    } catch (error) {
+      console.error('Error uploading chat image:', error);
+      throw error;
+    }
+  }
+
+  // 2. ดึงประวัติการแชท
+  async getChatHistory(room_id: string) {
+    try {
+      const url = `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CHAT_HISTORY.replace('{CHAT_ID}', room_id)}`;
+      return await apiRequest(url, {
         method: 'GET',
-        withAuth: true,
-      }
-    );
-    // ดึง data จาก { success: true, data: [...] }
-    return response?.data || response;
+      });
+    } catch (error) {
+      console.error('Error fetching chat history:', error);
+      return [];
+    }
   }
 
-  async getChatListByUser(userId: string) {
-    const url = API_ENDPOINTS.CHAT_LIST_BY_USER.replace('{USER_ID}', userId);
-    const response = await apiRequest<any>(
-      `${API_ENDPOINTS.BASE_URL}${url}`,
-      {
+  // 3. ดึงรายการแชทล่าสุด
+  async getChatListByUser(userId: number | string) {
+    try {
+      const url = `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CHAT_LIST_BY_USER.replace('{USER_ID}', userId.toString())}`;
+      const response = await apiRequest(url, {
         method: 'GET',
-        withAuth: true,
-      }
-    );
-
-    console.log('[DEBUG] Chat List Response for User:', userId, JSON.stringify(response, null, 2));
-
-    // แมปข้อมูลจาก Backend ให้ตรงกับ Interface ของแอป
-    const list = response?.data || [];
-    return list.map((item: any) => ({
-      ...item,
-      chatId: item.room_id,
-      otherUserId: item.partner_id?.toString(),
-      otherUserName: item.partner_shop_name || item.shop_name || item.partner_name || item.partner_shopName || 'ผู้ใช้',
-      otherUserAvatar: this.formatImageUrl(item.partner_shop_image || item.partner_image || item.shop_image || item.partner_avatar || item.partner_shopAvatar),
-      lastMessage: item.message,
-      lastMessageTime: item.created_at,
-      userId: userId // เราคือผู้ใช้งานปัจจุบัน
-    }));
+      });
+      return response.success ? response.data : response;
+    } catch (error) {
+      console.error('Error fetching chat list:', error);
+      return [];
+    }
   }
 
-  public formatImageUrl(path: string | null) {
-    if (!path) return null;
-    if (path.startsWith('http')) return path;
-    const baseUrl = 'https://finalrental.onrender.com';
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    return `${baseUrl}${normalizedPath}`;
-  }
-
-
+  // 4. ดึงข้อมูลสรุปการจอง
   async getChatBookingSummary(chatId: string) {
-    const url = API_ENDPOINTS.CHAT_BOOKING_SUMMARY.replace('{CHAT_ID}', chatId);
-    const response = await apiRequest<any>(
-      `${API_ENDPOINTS.BASE_URL}${url}`,
-      {
+    try {
+      const url = `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CHAT_BOOKING_SUMMARY.replace('{CHAT_ID}', chatId)}`;
+      return await apiRequest(url, {
         method: 'GET',
-        withAuth: true,
-      }
-    );
-    return response?.data || response;
+      });
+    } catch (error) {
+      console.error('Error fetching booking summary:', error);
+      return null;
+    }
   }
+
+  // 5. จัดการ URL รูปภาพ
+  formatImageUrl(url?: string) {
+    if (!url || typeof url !== 'string' || url === 'undefined' || url === 'null') return null;
+    if (url.startsWith('http')) return url;
+
+    // ล้างค่าที่เป็น path สกปรก เช่น //uploads หรือ ./uploads
+    let cleanPath = url.replace(/^[\/\.]+/, '');
+
+    let finalUrl = '';
+    // ✅ กรณีเป็น path uploads/ (ทั้งรูปสินค้าและแชท)
+    if (cleanPath.includes('uploads/')) {
+      finalUrl = `${API_ENDPOINTS.RENTAL_BASE_URL}/${cleanPath}`;
+    }
+    // fallback กรณีเป็นรูปโปรไฟล์ที่เก็บแค่ชื่อไฟล์
+    else if (cleanPath.includes('profile-')) {
+      finalUrl = `${API_ENDPOINTS.RENTAL_BASE_URL}/uploads/profiles/${cleanPath}`;
+    }
+    // fallback กรณีรูปอื่นๆ ที่มี path มาเฉยๆ
+    else {
+      finalUrl = `${API_ENDPOINTS.RENTAL_BASE_URL}/${cleanPath}`;
+    }
+
+    // เพิ่ม cache buster เล็กน้อยเพื่อไม่ให้รูปค้าง (เลือกใช้ t=... ถ้าต้องการ force refresh)
+    // return `${finalUrl}?t=${new Date().getTime()}`; 
+    return finalUrl;
+  }
+
+
 }
 
-export default new ChatService();
+const chatService = new ChatService();
+export default chatService;

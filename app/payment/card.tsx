@@ -1,39 +1,51 @@
-import React, { useState } from 'react';
+import rentalService from '@/services/rental.service';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
 import {
-    View,
-    Text,
-    SafeAreaView,
-    TouchableOpacity,
-    TextInput,
-    StyleSheet,
+    Alert,
     KeyboardAvoidingView,
     Platform,
-    Alert,
-    ScrollView
+    SafeAreaView,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 
 export default function CreditCardPaymentScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { amount } = params;
+    const { amount, rentalId } = params;
 
     const [cardName, setCardName] = useState('');
     const [cardNumber, setCardNumber] = useState('');
     const [expiry, setExpiry] = useState('');
     const [cvv, setCvv] = useState('');
 
-    const handleConfirm = () => {
+    const handleConfirm = async () => {
         if (!cardName || !cardNumber || !expiry || !cvv) {
             Alert.alert('แจ้งเตือน', 'กรุณากรอกข้อมูลบัตรให้ครบถ้วน');
             return;
         }
 
-        // Simulate payment process
-        Alert.alert('สำเร็จ', 'ดำเนินการจองและชำระเงินเรียบร้อยแล้ว', [
-            { text: 'ดูรายการเช่าของฉัน', onPress: () => router.push('/(tabs)/profile/bookings') }
-        ]);
+        try {
+            if (rentalId) {
+                // Card payment is usually instant -> status = 'paid'
+                await rentalService.updateRentalStatus(rentalId as string, {
+                    rentalId: rentalId as string,
+                    status: 'paid'
+                });
+            }
+
+            Alert.alert('ชำระเงินสำเร็จ', 'ระบบได้รับยอดชำระเงินเรียบร้อยแล้ว', [
+                { text: 'ตกลง', onPress: () => router.push('/(tabs)/profile/bookings') }
+            ]);
+        } catch (error) {
+            Alert.alert('เกิดข้อผิดพลาด', 'ไม่สามารถแจ้งชำระเงินได้ กรุณาลองใหม่');
+        }
     };
 
     return (

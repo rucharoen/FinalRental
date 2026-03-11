@@ -1,19 +1,21 @@
+import cartService, { CartItem } from '@/services/cart.service';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFocusEffect, useRouter } from 'expo-router';
+import chatService from '@/services/chat.service';
 import React, { useState } from 'react';
 import {
-  View,
-  Text,
+  Alert,
+  Dimensions,
   Image,
-  ScrollView,
-  TouchableOpacity,
   SafeAreaView,
+  ScrollView,
   StyleSheet,
-  Dimensions
+  Text,
+  TouchableOpacity,
+  View
 } from 'react-native';
-import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Swipeable from 'react-native-gesture-handler/Swipeable';
-import cartService, { CartItem } from '@/services/cart.service';
 
 const { width } = Dimensions.get('window');
 
@@ -83,9 +85,39 @@ export default function CartScreen() {
     );
   };
 
+  const parseThaiDate = (dateStr: string) => {
+    const months = [
+      "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+      "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+    ];
+    if (!dateStr) return new Date();
+    const parts = dateStr.trim().split(/\s+/);
+    const day = parseInt(parts[0]);
+    const monthIndex = months.indexOf(parts[1]);
+    const currentYearThai = new Date().getFullYear() + 543;
+    let year = parts[2] ? parseInt(parts[2]) : currentYearThai;
+    return new Date(year - 543, monthIndex, day);
+  };
+
+  const getItemDays = (item: CartItem) => {
+    if (!item.startDate || !item.endDate) return 1;
+    try {
+      const start = parseThaiDate(item.startDate);
+      const end = parseThaiDate(item.endDate);
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const days = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      return isNaN(days) || days < 1 ? 1 : days;
+    } catch (e) {
+      return 1;
+    }
+  };
+
   const totalPrice = cartItems
     .filter(item => item.selected)
-    .reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    .reduce((sum, item) => {
+      const days = getItemDays(item);
+      return sum + (item.price * item.quantity * days);
+    }, 0);
 
   const shippingFee = totalPrice > 0 ? 50 : 0;
 
@@ -104,6 +136,22 @@ export default function CartScreen() {
   };
 
   const isAllSelected = cartItems.length > 0 && cartItems.every(item => item.selected);
+
+  const handleCheckout = () => {
+    const selectedItems = cartItems.filter(item => item.selected);
+    if (selectedItems.length === 0) {
+      Alert.alert('แจ้งเตือน', 'กรุณาเลือกสินค้าอย่างน้อย 1 รายการ');
+      return;
+    }
+
+    const selectedIds = selectedItems.map(item => item.id).join(',');
+    router.push({
+      pathname: '/(tabs)/checkout',
+      params: {
+        items: selectedIds
+      }
+    } as any);
+  };
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -145,7 +193,9 @@ export default function CartScreen() {
                   />
                 </TouchableOpacity>
                 <MaterialCommunityIcons name="store-outline" size={20} color="#333" style={{ marginLeft: 8 }} />
-                <Text style={styles.shopName} numberOfLines={1}>{shopName}</Text>
+                <Text style={styles.shopName} numberOfLines={1}>
+                  {shopName && shopName !== 'undefined' ? shopName : 'ร้านค้า'}
+                </Text>
                 <Ionicons name="chevron-forward" size={16} color="#BDC3C7" />
               </View>
 
@@ -162,7 +212,7 @@ export default function CartScreen() {
                       </TouchableOpacity>
 
                       <View style={styles.productImageWrapper}>
-                        <Image source={{ uri: item.image }} style={styles.productImage} />
+                        <Image source={{ uri: chatService.formatImageUrl(item.image) || 'https://via.placeholder.com/150' }} style={styles.productImage} />
                       </View>
 
                       <View style={styles.productInfo}>
@@ -174,7 +224,14 @@ export default function CartScreen() {
                         </View>
 
                         <View style={styles.priceAndQuantity}>
-                          <Text style={styles.priceText}>{item.price.toLocaleString()} ฿</Text>
+                          <View>
+                            <Text style={styles.priceText}>
+                              {(item.price * getItemDays(item)).toLocaleString()} ฿
+                            </Text>
+                            <Text style={styles.priceSubText}>
+                              ({item.price.toLocaleString()} ฿ x {getItemDays(item)} วัน)
+                            </Text>
+                          </View>
 
                           <View style={styles.quantityControl}>
                             <TouchableOpacity
@@ -224,7 +281,10 @@ export default function CartScreen() {
               </View>
               {shippingFee > 0 && <Text style={styles.shippingText}>ค่าส่ง {shippingFee} ฿</Text>}
             </View>
-            <TouchableOpacity style={[styles.checkoutBtn, totalPrice === 0 && styles.disabledBtn]}>
+            <TouchableOpacity 
+              style={[styles.checkoutBtn, totalPrice === 0 && styles.disabledBtn]}
+              onPress={handleCheckout}
+            >
               <Text style={styles.checkoutBtnText}>ชำระเงิน</Text>
             </TouchableOpacity>
           </View>
@@ -340,6 +400,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#E74C3C',
+  },
+  priceSubText: {
+    fontSize: 10,
+    color: '#7F8C8D',
   },
   quantityControl: {
     flexDirection: 'row',

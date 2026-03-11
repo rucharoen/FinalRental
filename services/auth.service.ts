@@ -260,10 +260,26 @@ class AuthService {
     return result;
   }
 
-  // 📌 ลืมรหัสผ่าน
-  async requestPasswordReset(data: { full_name: string; id_card: string; identifier: string }) {
+  // 📌 ลืมรหัสผ่าน (ขั้นตอนที่ 1: ตรวจสอบข้อมูล)
+  async verifyResetUser(data: { full_name: string; id_card: string; identifier: string }) {
     return apiRequest(
-      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_FORGOT_PASSWORD_REQUEST}`,
+      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_VERIFY_RESET_USER}`,
+      {
+        method: "POST",
+        body: JSON.stringify({ 
+          full_name: data.full_name,
+          id_card_number: data.id_card,
+          contact: data.identifier
+        }),
+        withAuth: false,
+      }
+    );
+  }
+
+  // 📌 ลืมรหัสผ่าน (ขั้นตอนที่ 2: ตั้งรหัสใหม่)
+  async resetPassword(data: { resetToken: string; newPassword: string }) {
+    return apiRequest(
+      `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.AUTH_RESET_PASSWORD}`,
       {
         method: "POST",
         body: JSON.stringify(data),

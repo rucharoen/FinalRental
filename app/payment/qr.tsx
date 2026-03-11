@@ -1,27 +1,74 @@
-import React, { useEffect, useState } from 'react';
-import {
-    View,
-    Text,
-    SafeAreaView,
-    TouchableOpacity,
-    Image,
-    StyleSheet,
-    Alert,
-    ScrollView,
-    StatusBar
-} from 'react-native';
+import rentalService from '@/services/rental.service';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    SafeAreaView,
+    ScrollView,
+    StatusBar,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View
+} from 'react-native';
 
 export default function QRPaymentScreen() {
     const router = useRouter();
     const params = useLocalSearchParams();
-    const { amount } = params;
+    const { amount, rentalId } = params;
 
-    const handleFinish = () => {
-        Alert.alert('ตรวจสอบสำเร็จ', 'ได้รับยอดชำระเงินเรียบร้อยแล้ว', [
-            { text: 'ดูรายการเช่าของฉัน', onPress: () => router.push('/(tabs)/profile/bookings') }
-        ]);
+    const [image, setImage] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+
+    const pickImage = async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert('ขออภัย', 'เราต้องการสิทธิ์เข้าถึงรูปภาพเพื่ออัปโหลดหลักฐาน');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'], // Updated for newer expo-image-picker versions
+            allowsEditing: true,
+            quality: 0.7,
+            base64: true,
+        });
+
+        if (!result.canceled) {
+            // Save as base64 or URL
+            setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+        }
+    };
+
+    const handleFinish = async () => {
+        if (!image) {
+            Alert.alert('แจ้งเตือน', 'กรุณาอัปโหลดรูปภาพหลักฐานการโอนเงิน');
+            return;
+        }
+
+        try {
+            setIsUploading(true);
+            if (rentalId) {
+                // Call the new backend endpoint via RentalService
+                await rentalService.uploadPaymentSlip({
+                    rental_id: parseInt(rentalId as string),
+                    slip_image: image
+                });
+            }
+
+            Alert.alert('ส่งหลักฐานเรียบร้อย', 'กรุณารอเจ้าของร้านและแอดมินตรวจสอบยอดชำระเงิน', [
+                { text: 'ตกลง', onPress: () => router.push('/(tabs)/profile/bookings') }
+            ]);
+        } catch (error: any) {
+            console.error('Upload error:', error);
+            Alert.alert('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถแจ้งชำระเงินได้ กรุณาลองใหม่');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleSaveQR = () => {
@@ -39,7 +86,7 @@ export default function QRPaymentScreen() {
                 <Text style={styles.headerTitle}>การชำระเงิน</Text>
             </View>
 
-            <View style={styles.mainContent}>
+            <ScrollView contentContainerStyle={styles.mainContent}>
                 <View style={styles.qrCardMain}>
                     {/* Dark Blue Header of Card */}
                     <View style={styles.cardHeader}>
@@ -71,15 +118,42 @@ export default function QRPaymentScreen() {
                         <Text style={styles.subTextGrey}>ตัวกลางการเช่า</Text>
                     </View>
                 </View>
-            </View>
+
+                {/* Image Upload Section */}
+                <View style={styles.uploadSection}>
+                    <Text style={styles.uploadTitle}>อัปโหลดสลิปธนาคาร</Text>
+                    <TouchableOpacity style={styles.uploadBox} onPress={pickImage}>
+                        {image ? (
+                            <Image source={{ uri: image }} style={styles.previewImage} resizeMode="contain" />
+                        ) : (
+                            <View style={styles.uploadPlaceholder}>
+                                <Ionicons name="camera-outline" size={40} color="#BDC3C7" />
+                                <Text style={styles.uploadPlaceholderText}>กดเพื่อเลือกรูปภาพ</Text>
+                            </View>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            </ScrollView>
 
             {/* Bottom Buttons Container */}
             <View style={styles.bottomActions}>
-                <TouchableOpacity style={styles.saveBtn} onPress={handleSaveQR}>
+                <TouchableOpacity
+                    style={[styles.saveBtn, isUploading && { opacity: 0.5 }]}
+                    onPress={handleSaveQR}
+                    disabled={isUploading}
+                >
                     <Text style={styles.saveBtnText}>บันทึก QR</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={handleFinish}>
-                    <Text style={styles.confirmBtnText}>ตกลง</Text>
+                <TouchableOpacity
+                    style={[styles.confirmBtn, isUploading && { backgroundColor: '#BDC3C7' }]}
+                    onPress={handleFinish}
+                    disabled={isUploading}
+                >
+                    {isUploading ? (
+                        <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                        <Text style={styles.confirmBtnText}>ตกลง</Text>
+                    )}
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
@@ -108,9 +182,9 @@ const styles = StyleSheet.create({
         marginLeft: 10,
     },
     mainContent: {
-        flex: 1,
         alignItems: 'center',
         paddingTop: 40,
+        paddingBottom: 40, // เพิ่มพื้นที่ด้านล่างเพื่อให้เลื่อนเห็นได้ครบ
         backgroundColor: '#F8F9FA',
     },
     qrCardMain: {
@@ -210,5 +284,40 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
+    },
+    uploadSection: {
+        width: '85%',
+        marginTop: 20,
+        marginBottom: 30,
+    },
+    uploadTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#2C3E50',
+        marginBottom: 10,
+    },
+    uploadBox: {
+        width: '100%',
+        height: 200,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 15,
+        borderWidth: 2,
+        borderColor: '#E0E0E0',
+        borderStyle: 'dashed',
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+    uploadPlaceholder: {
+        alignItems: 'center',
+    },
+    uploadPlaceholderText: {
+        marginTop: 10,
+        color: '#95A5A6',
+        fontSize: 14,
+    },
+    previewImage: {
+        width: '100%',
+        height: '100%',
     },
 });

@@ -20,15 +20,28 @@ export default function ForgotPasswordScreen() {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
 
-    // Form Fields
+    // Flow Control
+    const [step, setStep] = useState(1); // 1: Verify, 2: New Password
+    const [resetToken, setResetToken] = useState("");
+
+    // Form Fields (Step 1)
     const [fullName, setFullName] = useState("");
     const [idCard, setIdCard] = useState("");
     const [identifier, setIdentifier] = useState(""); // Email or Phone
+
+    // Form Fields (Step 2)
+    const [newPassword, setNewPassword] = useState("");
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
     // Error States
     const [fullNameError, setFullNameError] = useState("");
     const [idCardError, setIdCardError] = useState("");
     const [identifierError, setIdentifierError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
+    const [passwordSuggestion, setPasswordSuggestion] = useState("");
+    const [confirmPasswordError, setConfirmPasswordError] = useState("");
 
     const [fadeAnim] = useState(new Animated.Value(0));
     const [slideAnim] = useState(new Animated.Value(20));
@@ -48,52 +61,156 @@ export default function ForgotPasswordScreen() {
         ]).start();
     }, []);
 
-    const validateForm = () => {
-        let isValid = true;
-
+    const validateFullName = (name: string) => {
+        if (name.trim() === "") {
+            setFullNameError("❗️กรุณาป้อนชื่อของคุณ");
+            return false;
+        }
+        if (/^\d+$/.test(name)) {
+            setFullNameError("❗️ชื่อ–นามสกุลต้องเป็นตัวอักษร ไม่สามารถเป็นตัวเลขได้");
+            return false;
+        }
+        const specialChars = /[@#$%^&*()_+=\!\?\/\\|<>]/;
+        if (specialChars.test(name)) {
+            setFullNameError("❗️ชื่อ–นามสกุลไม่สามารถใช้อักขระพิเศษได้");
+            return false;
+        }
+        const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
+        if (emojiRegex.test(name)) {
+            setFullNameError("❗️ชื่อ–นามสกุลไม่สามารถใช้อิโมจิได้");
+            return false;
+        }
+        const validChars = /^[a-zA-Z\u0e00-\u0e7f\s]+$/;
+        if (!validChars.test(name)) {
+            setFullNameError("❗️กรุณากรอกชื่อ–นามสกุลเป็นภาษาไทยหรือภาษาอังกฤษเท่านั้น");
+            return false;
+        }
         setFullNameError("");
-        setIdCardError("");
-        setIdentifierError("");
-
-        if (!fullName.trim()) {
-            setFullNameError("กรุณากรอก ชื่อ-นามสกุลให้ถูกต้อง");
-            isValid = false;
-        }
-
-        if (!idCard.trim() || idCard.length !== 13) {
-            setIdCardError("กรุณากรอก เลขบัตรประชาชนให้ถูกต้อง");
-            isValid = false;
-        }
-
-        if (!identifier.trim()) {
-            setIdentifierError("กรุณากรอก อีเมลหรือเบอร์โทรศัพท์ให้ถูกต้อง");
-            isValid = false;
-        }
-
-        return isValid;
+        return true;
     };
 
-    const handleSubmit = async () => {
-        if (!validateForm()) return;
+    const validateIdCard = (id: string) => {
+        if (!id.trim() || id.length !== 13) {
+            setIdCardError("❗️กรุณากรอกเลขบัตรประชาชนให้ครบ 13 หลัก");
+            return false;
+        }
+        setIdCardError("");
+        return true;
+    };
+
+    const validateIdentifier = (text: string) => {
+        if (!text.trim()) {
+            setIdentifierError("❗️กรุณาป้อนอีเมลหรือเบอร์โทรศัพท์");
+            return false;
+        }
+        setIdentifierError("");
+        return true;
+    };
+
+    const validatePassword = (pass: string) => {
+        if (pass.trim() === "") {
+            setPasswordError("❗️กรุณาป้อนรหัสผ่าน");
+            return false;
+        }
+        if (pass.length < 8) {
+            setPasswordError("❗️รหัสผ่านต้องมีความยาวอย่างน้อย 8 ตัวอักษร");
+            return false;
+        }
+        if (/[\u0e00-\u0e7f]/.test(pass)) {
+            setPasswordError("❗️ห้ามใช้ภาษาไทย");
+            return false;
+        }
+        if (pass.includes(" ")) {
+            setPasswordError("❗️ห้ามเว้นรหัสผ่าน");
+            return false;
+        }
+        const hasLetter = /[a-zA-Z]/.test(pass);
+        const hasNumber = /\d/.test(pass);
+        const hasSpecial = /[^a-zA-Z0-9]/.test(pass);
+        if (!hasLetter || !hasNumber || hasSpecial) {
+            setPasswordError("❗️รหัสผ่านต้องมี A-z, 0-9 และไม่มีอักขระพิเศษ");
+            return false;
+        }
+        const blacklist = ["12345678", "password", "qwerty", "11111111"];
+        if (blacklist.includes(pass.toLowerCase())) {
+            setPasswordError("❗️รหัสผ่านนี้คาดเดาได้ง่าย กรุณาเปลี่ยนรหัสผ่านใหม่");
+            return false;
+        }
+
+        const hasLower = /[a-z]/.test(pass);
+        const hasUpper = /[A-Z]/.test(pass);
+        if (!hasLower || !hasUpper) {
+            setPasswordSuggestion("❗️รหัสผ่านควรมีทั้งตัวพิมพ์เล็กและตัวพิมพ์ใหญ่");
+        } else {
+            setPasswordSuggestion("");
+        }
+
+        setPasswordError("");
+        return true;
+    };
+
+    const validateConfirmPassword = (confirm: string, original: string) => {
+        if (confirm !== original) {
+            setConfirmPasswordError("❗️รหัสผ่านไม่ตรงกัน");
+            return false;
+        }
+        setConfirmPasswordError("");
+        return true;
+    };
+
+    const handleVerifyUser = async () => {
+        const isNameValid = validateFullName(fullName);
+        const isIdValid = validateIdCard(idCard);
+        const isContactValid = validateIdentifier(identifier);
+
+        if (!isNameValid || !isIdValid || !isContactValid) return;
 
         setLoading(true);
         try {
-            await AuthService.requestPasswordReset({
+            const response = await AuthService.verifyResetUser({
                 full_name: fullName,
                 id_card: idCard,
                 identifier: identifier,
             });
 
+            if (response.success && response.resetToken) {
+                setResetToken(response.resetToken);
+                setStep(2);
+                Animated.sequence([
+                    Animated.timing(fadeAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+                    Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+                ]).start();
+            }
+        } catch (error: any) {
             Alert.alert(
-                "ส่งคำขอสำเร็จ",
-                "ระบบได้รับการขอเปลี่ยนรหัสผ่านของคุณแล้ว แอดมินจะตรวจสอบและติดต่อคุณผ่านอีเมลหรือเบอร์โทรศัพท์ที่แจ้งไว้",
+                "ข้อมูลไม่ถูกต้อง",
+                "ข้อมูลที่คุณกรอกไม่ตรงกับฐานข้อมูลของระบบ กรุณาตรวจสอบและลองใหม่อีกครั้ง"
+            );
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResetPassword = async () => {
+        const isPassValid = validatePassword(newPassword);
+        const isConfirmValid = validateConfirmPassword(confirmPassword, newPassword);
+
+        if (!isPassValid || !isConfirmValid) return;
+
+        setLoading(true);
+        try {
+            await AuthService.resetPassword({
+                resetToken: resetToken,
+                newPassword: newPassword,
+            });
+
+            Alert.alert(
+                "สำเร็จ",
+                "เปลี่ยนรหัสผ่านสำเร็จแล้ว คุณสามารถเข้าสู่ด้วยรหัสผ่านใหม่ได้ทันที",
                 [{ text: "ตกลง", onPress: () => router.replace("/login") }]
             );
         } catch (error: any) {
-            Alert.alert(
-                "ข้อผิดพลาด",
-                error?.message || "ไม่สามารถส่งคำขอได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง"
-            );
+            Alert.alert("ข้อผิดพลาด", error?.message || "เปลี่ยนรหัสผ่านไม่สำเร็จ กรุณาลองใหม่");
         } finally {
             setLoading(false);
         }
@@ -107,13 +224,15 @@ export default function ForgotPasswordScreen() {
             >
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => {
-                        if (router.canGoBack()) {
+                        if (step === 2) {
+                            setStep(1);
+                        } else if (router.canGoBack()) {
                             router.back();
                         } else {
-                            router.replace("/");
+                            router.replace("/login");
                         }
                     }} style={styles.backButton}>
-                        <Ionicons name="chevron-back" size={28} color="#1a1a1a" />
+                        <Ionicons name="chevron-back" size={28} color="#000000" />
                     </TouchableOpacity>
                 </View>
 
@@ -132,70 +251,132 @@ export default function ForgotPasswordScreen() {
                         }
                     ]}>
                         <View style={styles.content}>
-                            <View style={styles.inputGroup}>
-                                <TextInput
-                                    style={[styles.input, fullNameError ? styles.inputError : null]}
-                                    placeholder="ชื่อ-นามสกุล"
-                                    placeholderTextColor="#9ca3af"
-                                    value={fullName}
-                                    onChangeText={(v) => {
-                                        setFullName(v);
-                                        if (fullNameError) setFullNameError("");
-                                    }}
-                                />
-                                {fullNameError ? <Text style={styles.errorText}>{fullNameError}</Text> : null}
-                            </View>
+                            {step === 1 ? (
+                                <>
+                                    <View style={styles.inputGroup}>
+                                        <TextInput
+                                            style={[styles.input, fullNameError ? styles.inputError : null]}
+                                            placeholder="ชื่อ-นามสกุล"
+                                            placeholderTextColor="#9ca3af"
+                                            value={fullName}
+                                            onChangeText={(v) => {
+                                                setFullName(v);
+                                                if (fullNameError) validateFullName(v);
+                                            }}
+                                            onBlur={() => validateFullName(fullName)}
+                                        />
+                                        {fullNameError ? <Text style={styles.errorText}>{fullNameError}</Text> : null}
+                                    </View>
 
-                            <View style={styles.inputGroup}>
-                                <TextInput
-                                    style={[styles.input, idCardError ? styles.inputError : null]}
-                                    placeholder="เลขบัตรประชาชน"
-                                    placeholderTextColor="#9ca3af"
-                                    value={idCard}
-                                    onChangeText={(text) => {
-                                        const cleaned = text.replace(/[^0-9]/g, "");
-                                        setIdCard(cleaned);
-                                        if (idCardError) setIdCardError("");
-                                    }}
-                                    keyboardType="numeric"
-                                    maxLength={13}
-                                />
-                                {idCardError ? <Text style={styles.errorText}>{idCardError}</Text> : null}
-                            </View>
+                                    <View style={styles.inputGroup}>
+                                        <TextInput
+                                            style={[styles.input, idCardError ? styles.inputError : null]}
+                                            placeholder="เลขบัตรประชาชน"
+                                            placeholderTextColor="#9ca3af"
+                                            value={idCard}
+                                            onChangeText={(text) => {
+                                                const cleaned = text.replace(/[^0-9]/g, "");
+                                                setIdCard(cleaned);
+                                                if (idCardError) validateIdCard(cleaned);
+                                            }}
+                                            onBlur={() => validateIdCard(idCard)}
+                                            keyboardType="numeric"
+                                            maxLength={13}
+                                        />
+                                        {idCardError ? <Text style={styles.errorText}>{idCardError}</Text> : null}
+                                    </View>
 
-                            <View style={styles.inputGroup}>
-                                <TextInput
-                                    style={[styles.input, identifierError ? styles.inputError : null]}
-                                    placeholder="อีเมลหรือเบอร์โทรศัพท์"
-                                    placeholderTextColor="#9ca3af"
-                                    value={identifier}
-                                    onChangeText={(v) => {
-                                        setIdentifier(v);
-                                        if (identifierError) setIdentifierError("");
-                                    }}
-                                    autoCapitalize="none"
-                                    keyboardType="email-address"
-                                />
-                                {identifierError ? <Text style={styles.errorText}>{identifierError}</Text> : null}
-                            </View>
+                                    <View style={styles.inputGroup}>
+                                        <TextInput
+                                            style={[styles.input, identifierError ? styles.inputError : null]}
+                                            placeholder="อีเมลหรือเบอร์โทรศัพท์"
+                                            placeholderTextColor="#9ca3af"
+                                            value={identifier}
+                                            onChangeText={(v) => {
+                                                setIdentifier(v);
+                                                if (identifierError) validateIdentifier(v);
+                                            }}
+                                            onBlur={() => validateIdentifier(identifier)}
+                                            autoCapitalize="none"
+                                            keyboardType="email-address"
+                                        />
+                                        {identifierError ? <Text style={styles.errorText}>{identifierError}</Text> : null}
+                                    </View>
 
-                            <TouchableOpacity
-                                style={[styles.mainButton, loading && styles.disabledButton]}
-                                onPress={handleSubmit}
-                                disabled={loading}
-                                activeOpacity={0.8}
-                            >
-                                <Text style={styles.mainButtonText}>
-                                    {loading ? "กำลังส่งคำขอ..." : "รีเซ็ทรหัสผ่าน"}
-                                </Text>
-                            </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={[styles.mainButton, loading && styles.disabledButton]}
+                                        onPress={handleVerifyUser}
+                                        disabled={loading}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.mainButtonText}>
+                                            {loading ? "กำลังตรวจสอบ..." : "รีเซ็ทรหัสผ่าน"}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            ) : (
+                                <>
+                                    <View style={styles.inputGroup}>
+                                        <View style={styles.inputWrapper}>
+                                            <TextInput
+                                                style={[styles.input, passwordError ? styles.inputError : null]}
+                                                placeholder="รหัสผ่าน"
+                                                placeholderTextColor="#9ca3af"
+                                                secureTextEntry={!showPassword}
+                                                value={newPassword}
+                                                onChangeText={(v) => {
+                                                    setNewPassword(v);
+                                                    validatePassword(v);
+                                                }}
+                                                onBlur={() => validatePassword(newPassword)}
+                                            />
+                                            <TouchableOpacity 
+                                                onPress={() => setShowPassword(!showPassword)}
+                                                style={styles.eyeIcon}
+                                            >
+                                                <Ionicons name={showPassword ? "eye-off" : "eye"} size={22} color="#9ca3af" />
+                                            </TouchableOpacity>
+                                        </View>
+                                        {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : 
+                                         passwordSuggestion ? <Text style={styles.suggestionText}>{passwordSuggestion}</Text> : null}
+                                    </View>
 
-                            <View style={styles.infoContainer}>
-                                <Ionicons name="information-circle-outline" size={20} color="#666" />
-                                <Text style={styles.infoText}>
-                                    เมื่อคุณส่งคำขอ แอดมินจะดำเนินการตรวจสอบข้อมูลและทำการรีเซ็ทรหัสผ่านให้คุณในเร็วๆ นี้
-                                </Text>
-                            </View>
+                                    <View style={styles.inputGroup}>
+                                        <View style={styles.inputWrapper}>
+                                            <TextInput
+                                                style={[styles.input, confirmPasswordError ? styles.inputError : null]}
+                                                placeholder="ยืนยันรหัสผ่าน"
+                                                placeholderTextColor="#9ca3af"
+                                                secureTextEntry={!showConfirmPassword}
+                                                value={confirmPassword}
+                                                onChangeText={(v) => {
+                                                    setConfirmPassword(v);
+                                                    validateConfirmPassword(v, newPassword);
+                                                }}
+                                                onBlur={() => validateConfirmPassword(confirmPassword, newPassword)}
+                                            />
+                                            <TouchableOpacity 
+                                                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                                                style={styles.eyeIcon}
+                                            >
+                                                <Ionicons name={showConfirmPassword ? "eye-off" : "eye"} size={22} color="#9ca3af" />
+                                            </TouchableOpacity>
+                                        </View>
+                                        {confirmPasswordError ? <Text style={styles.errorText}>{confirmPasswordError}</Text> : null}
+                                    </View>
+
+                                    <TouchableOpacity
+                                        style={[styles.mainButton, loading && styles.disabledButton]}
+                                        onPress={handleResetPassword}
+                                        disabled={loading}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.mainButtonText}>
+                                            {loading ? "กำลังบันทึก..." : "ยืนยันรหัสผ่าน"}
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
                         </View>
                     </Animated.View>
                 </ScrollView>
@@ -220,21 +401,20 @@ const styles = StyleSheet.create({
         marginTop: Platform.OS === 'android' ? 10 : 0,
     },
     backButton: {
-        padding: 8,
+        padding: 4,
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: 24,
+        paddingHorizontal: 30,
         paddingBottom: 40,
     },
     title: {
-        fontSize: 32,
+        fontSize: 24,
         fontWeight: "600",
-        color: "#111827",
+        color: "#2c3e50",
         textAlign: "center",
         marginTop: 20,
-        marginBottom: 48,
-        letterSpacing: -0.5,
+        marginBottom: 40,
     },
     animatedContainer: {
         flex: 1,
@@ -245,65 +425,56 @@ const styles = StyleSheet.create({
     inputGroup: {
         marginBottom: 20,
     },
+    inputWrapper: {
+        position: 'relative',
+        width: '100%',
+        justifyContent: 'center',
+    },
     input: {
         width: "100%",
-        height: 58,
-        borderWidth: 1.5,
-        borderColor: "#e5e7eb",
-        borderRadius: 12,
+        height: 56,
+        borderWidth: 1,
+        borderColor: "#BDC3C7",
+        borderRadius: 8,
         paddingHorizontal: 16,
         fontSize: 16,
-        color: "#111827",
-        backgroundColor: "#f9fafb",
+        color: "#2C3E50",
+        backgroundColor: "#FFFFFF",
     },
     inputError: {
-        borderColor: "#ef4444",
-        backgroundColor: "#fef2f2",
+        borderColor: "#E74C3C",
+    },
+    eyeIcon: {
+        position: 'absolute',
+        right: 16,
+        padding: 4,
     },
     errorText: {
-        color: "#dc2626",
+        color: "#E74C3C",
         fontSize: 13,
         marginTop: 6,
         marginLeft: 4,
-        fontWeight: "500",
+    },
+    suggestionText: {
+        color: "#F39C12",
+        fontSize: 13,
+        marginTop: 6,
+        marginLeft: 4,
     },
     mainButton: {
-        backgroundColor: "#3498db",
-        height: 60,
-        borderRadius: 12,
+        backgroundColor: "#3498DB",
+        height: 56,
+        borderRadius: 8,
         alignItems: "center",
         justifyContent: "center",
-        marginTop: 12,
-        shadowColor: "#3498db",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
+        marginTop: 10,
     },
     disabledButton: {
-        backgroundColor: "#93c5fd",
-        shadowOpacity: 0,
-        elevation: 0,
+        backgroundColor: "#AED6F1",
     },
     mainButtonText: {
         color: "#FFFFFF",
         fontSize: 18,
         fontWeight: "600",
-        letterSpacing: 0.2,
-    },
-    infoContainer: {
-        flexDirection: "row",
-        marginTop: 30,
-        padding: 16,
-        backgroundColor: "#f8fafc",
-        borderRadius: 12,
-        alignItems: "flex-start",
-    },
-    infoText: {
-        flex: 1,
-        fontSize: 14,
-        color: "#64748b",
-        lineHeight: 20,
-        marginLeft: 10,
     },
 });

@@ -86,7 +86,11 @@ class ProductService {
       }
       return response;
     }).catch(error => {
-      console.error('[ProductService] getOwnProducts Failed:', error);
+      if (error instanceof Error && error.message === 'Unauthenticated') {
+        // Skip log for unauthenticated
+      } else {
+        console.error('[ProductService] getOwnProducts Failed:', error);
+      }
       throw error;
     });
   }
@@ -96,11 +100,13 @@ class ProductService {
 
     if (data instanceof FormData) {
       const token = await SecureStore.getItemAsync('userToken');
+      // When using FormData, let fetch set the Content-Type and boundary automatically
       const response = await fetch(`${API_ENDPOINTS.BASE_URL}${url}`, {
         method: 'PUT',
         body: data,
         headers: {
           'Authorization': `Bearer ${token}`,
+          // Don't set Content-Type: multipart/form-data manually, fetch will do it with the boundary
         },
       });
 
@@ -108,8 +114,13 @@ class ProductService {
         let errorMsg = `Update product failed: ${response.status}`;
         try {
           const resData = await response.json();
-          if (resData && resData.message) errorMsg = resData.message;
+          if (resData && resData.message) {
+            errorMsg = resData.message;
+          } else if (typeof resData === 'string') {
+            errorMsg = resData;
+          }
         } catch (e) {
+          // If response is not JSON
         }
         throw new Error(errorMsg);
       }

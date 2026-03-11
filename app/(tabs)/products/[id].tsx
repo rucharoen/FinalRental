@@ -15,6 +15,7 @@ import {
   View
 } from 'react-native';
 import authService from '../../../services/auth.service';
+import chatService from '../../../services/chat.service';
 
 
 export default function ProductDetailScreen() {
@@ -185,12 +186,7 @@ export default function ProductDetailScreen() {
             }
 
             const getImageUrl = (path: any) => {
-              if (!path) return 'https://via.placeholder.com/150';
-              if (typeof path !== 'string') return 'https://via.placeholder.com/150';
-              if (path.startsWith('http')) return path;
-              const baseUrl = 'https://finalrental.onrender.com';
-              const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-              return `${baseUrl}${normalizedPath}`;
+              return chatService.formatImageUrl(path) || 'https://via.placeholder.com/150';
             };
 
             return (
@@ -357,8 +353,18 @@ export default function ProductDetailScreen() {
             style={styles.iconButton}
             onPress={() => {
               const actualOwnerId = product.owner_id || (product as any).user_id || (product as any).userId || (product as any).shop_owner_id;
+              const shopId = product.shop_id || (product as any).shopId;
+              const shopName = product.shop_name || 'ร้านค้า';
+              
               console.log('[DEBUG] Navigating to chat with owner:', actualOwnerId, 'from product:', product.name);
-              router.push(`/(tabs)/chat/${actualOwnerId || 'default'}`);
+              
+              router.push({
+                pathname: `/(tabs)/chat/${actualOwnerId || 'default'}` as any,
+                params: { 
+                  shopId: shopId?.toString(),
+                  shopName: shopName
+                }
+              });
             }}
           >
             <Ionicons name="chatbubble-ellipses-outline" size={24} color="#7F8C8D" />

@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
+import React from 'react';
+import { Image, Text, TouchableOpacity, View } from 'react-native';
+import chatService from '../../services/chat.service';
 import { Product } from '../../services/product.service';
 import { styles } from '../../styles/home.styles';
 
@@ -14,7 +15,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const getImageUrl = (imgData: any) => {
     if (!imgData) return 'https://via.placeholder.com/150';
 
-    // Check if it's an array or string-array
     let imagesArr = [];
     try {
       imagesArr = typeof imgData === 'string' ? JSON.parse(imgData) : imgData;
@@ -22,15 +22,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       imagesArr = [imgData];
     }
 
-    if (!Array.isArray(imagesArr) || imagesArr.length === 0) return 'https://via.placeholder.com/150';
-
-    let path = imagesArr[0];
-    if (!path) return 'https://via.placeholder.com/150';
-    if (path.startsWith('http')) return path;
-
-    const baseUrl = 'https://finalrental.onrender.com';
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-    return `${baseUrl}${normalizedPath}`;
+    const path = Array.isArray(imagesArr) ? imagesArr[0] : imagesArr;
+    return chatService.formatImageUrl(path) || 'https://via.placeholder.com/150';
   };
 
   const mainImage = getImageUrl(product.images || (product as any).product_images);
