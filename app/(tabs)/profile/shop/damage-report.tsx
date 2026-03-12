@@ -1,3 +1,4 @@
+import { RENTAL_BASE_URL } from '@/services/api';
 import rentalService from '@/services/rental.service';
 import { styles } from '@/styles/rental_list.styles';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -57,7 +58,7 @@ const DamageReportScreen = () => {
                 if (!path) return 'https://via.placeholder.com/150';
                 if (path.startsWith('http')) return path;
 
-                const baseUrl = 'https://finalrental.onrender.com';
+                const baseUrl = RENTAL_BASE_URL;
                 const normalizedPath = path.startsWith('/') ? path : `/${path}`;
                 return `${baseUrl}${normalizedPath}`;
             }

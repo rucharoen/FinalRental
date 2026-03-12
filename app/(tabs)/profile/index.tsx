@@ -172,7 +172,7 @@ export default function ProfileScreen() {
           } as any);
 
           const shopResponse = await shopService.updateShopImage(shop.id, shopFormData);
-          
+
           if (shopResponse && !shopResponse.error) {
             Alert.alert('สำเร็จ', 'อัปเดตรูปโลโกร้านค้าเรียบร้อยแล้ว');
             await loadUserData(); // Refresh shop data
@@ -280,7 +280,7 @@ export default function ProfileScreen() {
             <Ionicons name="people" size={32} color="#000000" />
           </View>
           <View style={styles.menuContent}>
-            <Text style={styles.menuTitle}>เปลี่ยนบัญชีปล่อยเช่า</Text>
+            <Text style={styles.menuTitle}>เปลี่ยนเป็นผู้ปล่อยเช่า</Text>
           </View>
           <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
         </TouchableOpacity>
@@ -363,7 +363,7 @@ export default function ProfileScreen() {
           <Ionicons name="people" size={32} color="#000000" />
         </View>
         <View style={styles.menuContent}>
-          <Text style={styles.menuTitle}>เปลี่ยนบัญชีผู้เช่า</Text>
+          <Text style={styles.menuTitle}>เปลี่ยนเป็นผู้เช่า</Text>
         </View>
         <Ionicons name="chevron-forward" size={24} color="#BDC3C7" />
       </TouchableOpacity>

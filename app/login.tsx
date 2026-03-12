@@ -160,9 +160,12 @@ export default function LoginScreen() {
               placeholderTextColor="#999"
               value={identifier}
               onChangeText={(text) => {
-                let processedText = text;
-                if (!text.includes("@")) {
-                  processedText = text.replace(/[\s-]/g, "");
+                // กรอง Emoji ออก
+                const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
+                let processedText = text.replace(emojiRegex, '');
+                
+                if (!processedText.includes("@")) {
+                  processedText = processedText.replace(/[\s-]/g, "");
                 }
                 setIdentifier(processedText);
                 validateIdentifier(processedText);
@@ -181,8 +184,11 @@ export default function LoginScreen() {
                 placeholderTextColor="#999"
                 value={password}
                 onChangeText={(text) => {
-                  setPassword(text);
-                  validatePassword(text);
+                  // กรอง Emoji ออกจากรหัสผ่าน
+                  const emojiRegex = /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF])/g;
+                  const cleanText = text.replace(emojiRegex, '');
+                  setPassword(cleanText);
+                  validatePassword(cleanText);
                 }}
                 secureTextEntry={!showPassword}
               />

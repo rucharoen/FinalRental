@@ -105,6 +105,7 @@ export const API_ENDPOINTS = {
   CHAT_BOOKING_SUMMARY: process.env.EXPO_PUBLIC_CHAT_BOOKING_SUMMARY || '/chat/summary/{CHAT_ID}',
   CHAT_UPLOAD_IMAGE: '/chat/upload-image',
   CHAT_MARK_READ: '/chat/mark-read',
+  CHAT_HIDE: '/chat/hide',
 
   // AUTO / INTERVAL
   AUTO_REFUND_TRIGGER: process.env.EXPO_PUBLIC_AUTO_REFUND_TRIGGER || '/interval/trigger',

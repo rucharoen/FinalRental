@@ -113,10 +113,28 @@ class ChatService {
       const url = `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CHAT_HISTORY.replace('{CHAT_ID}', room_id)}`;
       return await apiRequest(url, {
         method: 'GET',
+        withAuth: true // ต้องใช้เพื่อเช็คเวลาที่กดซ่อนแชท
       });
     } catch (error) {
       console.error('Error fetching chat history:', error);
-      return [];
+      return { success: false, data: [] };
+    }
+  }
+
+  // 🆕 ซ่อนแชท (ลบฝั่งตัวเอง)
+  async hideChat(roomId: string, userId: string | number) {
+    try {
+      const url = `${API_ENDPOINTS.BASE_URL}${API_ENDPOINTS.CHAT_HIDE}`;
+      return await apiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          room_id: roomId,
+          userId: userId.toString()
+        }),
+      });
+    } catch (error) {
+      console.error('Error hiding chat:', error);
+      return { success: false };
     }
   }
 
