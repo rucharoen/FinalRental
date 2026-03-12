@@ -141,9 +141,10 @@ export default function TabLayout() {
       <Tabs.Screen name="profile/rules" options={{ href: null }} />
       <Tabs.Screen name="profile/bookings" options={{ href: null }} />
       <Tabs.Screen name="profile/kyc" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/rentals" options={{ href: null }} />
-      <Tabs.Screen name="profile/shop/damage-report" options={{ href: null }} />
+      <Tabs.Screen name="profile/shop" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="profile/shop/rentals" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="profile/shop/evidence" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="profile/shop/damage-report" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="profile/address" options={{ href: null }} />
 
 

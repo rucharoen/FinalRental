@@ -11,7 +11,8 @@ import {
     ActivityIndicator,
     Modal,
     StatusBar,
-    Platform
+    Platform,
+    BackHandler
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -28,6 +29,7 @@ const WalletScreen = () => {
 
     // Form State
     const [withdrawAmount, setWithdrawAmount] = useState('');
+    const [bankName, setBankName] = useState('');
     const [accountNumber, setAccountNumber] = useState('');
     const [accountName, setAccountName] = useState('');
 
@@ -41,7 +43,23 @@ const WalletScreen = () => {
         useCallback(() => {
             fetchBalance();
             loadUserInfo();
-        }, [])
+
+            const onBackPress = () => {
+                if (isWithdrawMode) {
+                    setIsWithdrawMode(false);
+                    return true;
+                }
+                router.push({
+                    pathname: '/(tabs)/profile',
+                    params: { mode: 'owner' }
+                });
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            return () => subscription.remove();
+        }, [isWithdrawMode])
     );
 
     const loadUserInfo = async () => {
@@ -76,7 +94,7 @@ const WalletScreen = () => {
             setIsWithdrawMode(true);
         } else {
             // Validate form
-            if (!withdrawAmount || !accountNumber || !accountName) {
+            if (!withdrawAmount || !bankName || !accountNumber || !accountName) {
                 Alert.alert('กรุณากรอกข้อมูลให้ครบถ้วน');
                 return;
             }
@@ -96,12 +114,12 @@ const WalletScreen = () => {
             // but based on design, we send amount, accountNumber, accountName.
             const data: any = {
                 amount: Number(withdrawAmount),
+                bank_name: bankName,
                 account_number: accountNumber,
                 account_name: accountName,
             };
 
-            // Note: services/wallet.service.ts expects WithdrawRequest { amount, bankAccountId, description }.
-            // We might need to adjust based on backend. For now, assuming requestWithdraw handles it.
+            // Note: services/wallet.service.ts handles the API call
             const response = await walletService.requestWithdraw(data);
 
             if (response && !response.error) {
@@ -122,6 +140,7 @@ const WalletScreen = () => {
         setShowSuccessModal(false);
         setIsWithdrawMode(false);
         setWithdrawAmount('');
+        setBankName('');
         setAccountNumber('');
         setAccountName('');
     };
@@ -137,7 +156,10 @@ const WalletScreen = () => {
                         if (isWithdrawMode) {
                             setIsWithdrawMode(false);
                         } else {
-                            router.back();
+                            router.push({
+                                pathname: '/(tabs)/profile',
+                                params: { mode: 'owner' }
+                            });
                         }
                     }}
                     style={{ padding: 5 }}
@@ -196,6 +218,16 @@ const WalletScreen = () => {
                                     keyboardType="numeric"
                                     value={withdrawAmount}
                                     onChangeText={setWithdrawAmount}
+                                />
+                            </View>
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>ธนาคาร</Text>
+                                <TextInput
+                                    style={styles.input}
+                                    placeholder="เช่น กสิกรไทย, ไทยพาณิชย์"
+                                    placeholderTextColor="#BDC3C7"
+                                    value={bankName}
+                                    onChangeText={setBankName}
                                 />
                             </View>
                             <View style={styles.inputGroup}>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -10,10 +10,11 @@ import {
     Alert,
     ActivityIndicator,
     KeyboardAvoidingView,
-    Platform
+    Platform,
+    BackHandler
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import productService from '@/services/product.service';
 import shopService from '@/services/shop.service';
@@ -33,9 +34,23 @@ const CreateProductScreen = () => {
     const [deposit, setDeposit] = useState('');
     const [images, setImages] = useState<string[]>([]);
 
-    useEffect(() => {
-        loadShopInfo();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadShopInfo();
+
+            const onBackPress = () => {
+                router.push({
+                    pathname: '/(tabs)/profile',
+                    params: { mode: 'owner' }
+                });
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            return () => subscription.remove();
+        }, [])
+    );
 
     const loadShopInfo = async () => {
         try {
@@ -135,7 +150,13 @@ const CreateProductScreen = () => {
                 Alert.alert(
                     'สำเร็จ',
                     'ลงประกาศสินค้าเรียบร้อยแล้ว',
-                    [{ text: 'ตกลง', onPress: () => router.back() }]
+                    [{ 
+                        text: 'ตกลง', 
+                        onPress: () => router.push({
+                            pathname: '/(tabs)/profile',
+                            params: { mode: 'owner' }
+                        }) 
+                    }]
                 );
             } else {
                 throw new Error(response?.message || 'เกิดข้อผิดพลาดในการสร้างสินค้า');
@@ -152,7 +173,13 @@ const CreateProductScreen = () => {
         <SafeAreaView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+                <TouchableOpacity 
+                    style={styles.backButton} 
+                    onPress={() => router.push({
+                        pathname: '/(tabs)/profile',
+                        params: { mode: 'owner' }
+                    })}
+                >
                     <Ionicons name="chevron-back" size={28} color="#2C3E50" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>ลงประกาศสินค้า</Text>

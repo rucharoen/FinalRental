@@ -12,7 +12,8 @@ import {
     StatusBar,
     Text,
     TouchableOpacity,
-    View
+    View,
+    BackHandler
 } from 'react-native';
 
 const OwnerRentalsScreen = () => {
@@ -24,6 +25,18 @@ const OwnerRentalsScreen = () => {
     useFocusEffect(
         useCallback(() => {
             fetchRentals();
+
+            const onBackPress = () => {
+                router.push({
+                    pathname: '/(tabs)/profile',
+                    params: { mode: 'owner' }
+                });
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            return () => subscription.remove();
         }, [])
     );
 
@@ -215,7 +228,13 @@ const OwnerRentalsScreen = () => {
                 {activeTab === 'shipping' && (
                     <TouchableOpacity
                         style={styles.shipButton}
-                        onPress={() => handleUpdateStatus(item, 'shipped')}
+                        onPress={() => router.push({
+                            pathname: '/(tabs)/profile/shop/evidence',
+                            params: { 
+                                rentalId: (item.id || item._id).toString(),
+                                productId: (item.product_id || item.productId || '').toString()
+                            }
+                        })}
                     >
                         <Text style={styles.buttonText}>จัดส่งแล้ว</Text>
                     </TouchableOpacity>
@@ -257,7 +276,10 @@ const OwnerRentalsScreen = () => {
             <StatusBar barStyle="dark-content" />
             <View style={styles.header}>
                 <TouchableOpacity
-                    onPress={() => router.push('/(tabs)/profile')}
+                    onPress={() => router.push({
+                        pathname: '/(tabs)/profile',
+                        params: { mode: 'owner' }
+                    })}
                     style={styles.backButton}
                 >
                     <Ionicons name="chevron-back" size={28} color="#000" />

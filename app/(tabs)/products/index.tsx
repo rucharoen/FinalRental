@@ -14,7 +14,8 @@ import {
     StatusBar,
     Text,
     TouchableOpacity,
-    View
+    View,
+    BackHandler
 } from 'react-native';
 
 const ProductManagementScreen = () => {
@@ -28,6 +29,18 @@ const ProductManagementScreen = () => {
     useFocusEffect(
         useCallback(() => {
             fetchMyProducts();
+
+            const onBackPress = () => {
+                router.push({
+                    pathname: '/(tabs)/profile',
+                    params: { mode: 'owner' }
+                });
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            return () => subscription.remove();
         }, [])
     );
 
@@ -152,7 +165,13 @@ const ProductManagementScreen = () => {
         <SafeAreaView style={styles.container}>
             <StatusBar barStyle="dark-content" />
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/profile')} style={styles.backButton}>
+                <TouchableOpacity 
+                    onPress={() => router.push({
+                        pathname: '/(tabs)/profile',
+                        params: { mode: 'owner' }
+                    })} 
+                    style={styles.backButton}
+                >
                     <Ionicons name="chevron-back" size={28} color="#000" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>จัดการสินค้า ({products.length})</Text>

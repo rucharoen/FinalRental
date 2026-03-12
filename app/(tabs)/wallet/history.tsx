@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
     View,
     Text,
@@ -11,10 +11,11 @@ import {
     Image,
     LayoutAnimation,
     Platform,
-    UIManager
+    UIManager,
+    BackHandler
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import walletService, { WalletTransaction } from '@/services/wallet.service';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -27,9 +28,20 @@ const TransactionHistoryScreen = () => {
     const [transactions, setTransactions] = useState<any[]>([]);
     const [expandedId, setExpandedId] = useState<string | null>(null);
 
-    useEffect(() => {
-        fetchHistory();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            fetchHistory();
+
+            const onBackPress = () => {
+                router.push('/(tabs)/wallet');
+                return true;
+            };
+
+            const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+
+            return () => subscription.remove();
+        }, [])
+    );
 
     const fetchHistory = async () => {
         try {
@@ -141,7 +153,7 @@ const TransactionHistoryScreen = () => {
             
             {/* Custom Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={styles.backButton}>
                     <Ionicons name="chevron-back" size={28} color="#2C3E50" />
                 </TouchableOpacity>
                 <View style={styles.logoContainer}>

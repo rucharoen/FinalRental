@@ -18,7 +18,10 @@ export interface BankAccount {
 
 export interface WithdrawRequest {
   amount: number;
-  bankAccountId: string;
+  bankAccountId?: string;
+  bank_name?: string;
+  account_number?: string;
+  account_name?: string;
   description?: string;
 }
 
