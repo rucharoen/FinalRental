@@ -123,9 +123,9 @@ class RentalService {
       id: numericRentalId,
       // เพิ่มฟิลด์ที่ Backend SHIP/RECEIVE เรียกหา
       outbound_shipping_company: update.outbound_shipping_company || 'Flash Express',
-      outbound_tracking_number: update.outbound_tracking_number || `TH${Date.now()}`,
+      outbound_tracking_number: update.outbound_tracking_number || '123456',
       inbound_shipping_company: (update as any).inbound_shipping_company || 'Flash Express',
-      inbound_tracking_number: (update as any).inbound_tracking_number || `RT${Date.now()}`,
+      inbound_tracking_number: (update as any).inbound_tracking_number || '123456',
       proof_url: update.proof_url || 'https://via.placeholder.com/300'
     };
 
